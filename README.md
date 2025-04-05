@@ -11,3 +11,8 @@ Sat-Sun: organizing data
 Sun: Running 5-8 different models
 
 Mon: putting slides together!
+
+Dataset ID
+
+ercot_load 2013-06-13 EDT to 2025-04-05 EDT
+ercot_fuel_mix 2017-01-01 EST to 2025-04-05 EDT
