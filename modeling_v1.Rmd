@@ -1,0 +1,27 @@
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+```
+
+
+```{r}
+ERCOT_fuelmix$Date <- as.Date(ERCOT_fuelmix$interval_start_local)
+ERCOT_load$Date <- as.Date(ERCOT_load$interval_start_local)
+ERCOT_temp$Date <- as.Date(ERCOT_temp$interval_start_local)
+
+ts_load <- msts(ERCOT_load$load, seasonal.periods = c(7,365.25), #day hours, week hours, year hours
+                start = c(2017,1,1))
+```
+
+```{r}
+autoplot(ts_load)
+```
+
