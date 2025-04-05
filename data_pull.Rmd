@@ -14,6 +14,8 @@ here()
 ```
 
 ```{r}
+#data pull from: https://www.gridstatus.io/products/api
+
 # Set wait time in seconds
 WAIT_TIME <- 1
 
