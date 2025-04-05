@@ -1,0 +1,40 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(rvest)
+library(dataRetrieval)
+library(tidyverse);library(lubridate);library(viridis);library(here)
+library(httr)
+library(jsonlite)
+here()
+
+```
+
+```{r}
+#API key
+api_key <- 'd70a0d83e1a942578e16b2ed70dab42f'
+
+# Base URL
+base_url <- 'https://api.gridstatus.io/v1/datasets/'
+
+# Construct full API URLs
+ercot_load_forecast_dam <- paste0(base_url, 'ercot_load_forecast_dam/query?api_key=', api_key, '&limit=1000')
+load <- paste0(base_url, 'ercot_load/query?api_key=', api_key, '&limit=1000')
+ercot_unplanned_resource_outages <- paste0(base_url, 'ercot_unplanned_resource_outages/query?api_key=', api_key, '&limit=1000')
+ercot_fuel_mix <- paste0(base_url, 'ercot_fuel_mix/query?api_key=', api_key, '&limit=1000')
+ercot_solar_actual_and_forecast_hourly <- paste0(base_url, 'ercot_solar_actual_and_forecast_hourly/query?api_key=', api_key, '&limit=1000')
+ercot_temperature_forecast_by_weather_zone <- paste0(base_url, 'ercot_temperature_forecast_by_weather_zone/query?api_key=', api_key, '&limit=1000')
+ercot_energy_storage_resources <- paste0(base_url, 'ercot_energy_storage_resources/query?api_key=', api_key, '&limit=1000')
+
+#getting ercot_fuel_mix
+response <- GET(ercot_fuel_mix)
+data <- content(response, "text")
+ercot_fuel_mix_df <- fromJSON(data)$data
+
+# View first few rows
+head(ercot_fuel_mix_df)
+```
+
