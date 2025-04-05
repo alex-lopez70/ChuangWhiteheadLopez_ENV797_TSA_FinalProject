@@ -3,14 +3,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-
 library(rvest)
 library(dataRetrieval)
 library(tidyverse);library(lubridate);library(viridis);library(here)
 library(httr)
 library(jsonlite)
 here()
-
 ```
 
 ```{r}
