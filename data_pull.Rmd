@@ -14,27 +14,39 @@ here()
 ```
 
 ```{r}
-#API key
-api_key <- 'd70a0d83e1a942578e16b2ed70dab42f'
+# Set wait time in seconds
+WAIT_TIME <- 1
 
-# Base URL
+# Set API key and base URL
+api_key <- 'd70a0d83e1a942578e16b2ed70dab42f'
 base_url <- 'https://api.gridstatus.io/v1/datasets/'
 
-# Construct full API URLs
-ercot_load_forecast_dam <- paste0(base_url, 'ercot_load_forecast_dam/query?api_key=', api_key, '&limit=1000')
-load <- paste0(base_url, 'ercot_load/query?api_key=', api_key, '&limit=1000')
-ercot_unplanned_resource_outages <- paste0(base_url, 'ercot_unplanned_resource_outages/query?api_key=', api_key, '&limit=1000')
-ercot_fuel_mix <- paste0(base_url, 'ercot_fuel_mix/query?api_key=', api_key, '&limit=1000')
-ercot_solar_actual_and_forecast_hourly <- paste0(base_url, 'ercot_solar_actual_and_forecast_hourly/query?api_key=', api_key, '&limit=1000')
-ercot_temperature_forecast_by_weather_zone <- paste0(base_url, 'ercot_temperature_forecast_by_weather_zone/query?api_key=', api_key, '&limit=1000')
-ercot_energy_storage_resources <- paste0(base_url, 'ercot_energy_storage_resources/query?api_key=', api_key, '&limit=1000')
+# Define API endpoints
+urls <- list(
+  ercot_load_forecast_dam = paste0(base_url, 'ercot_load_forecast_dam/query?api_key=', api_key, '&limit=1000'),
+  load = paste0(base_url, 'ercot_load/query?api_key=', api_key, '&limit=1000'),
+  ercot_unplanned_resource_outages = paste0(base_url, 'ercot_unplanned_resource_outages/query?api_key=', api_key, '&limit=1000'),
+  ercot_fuel_mix = paste0(base_url, 'ercot_fuel_mix/query?api_key=', api_key, '&limit=1000'),
+  ercot_solar_actual_and_forecast_hourly = paste0(base_url, 'ercot_solar_actual_and_forecast_hourly/query?api_key=', api_key, '&limit=1000'),
+  ercot_temperature_forecast_by_weather_zone = paste0(base_url, 'ercot_temperature_forecast_by_weather_zone/query?api_key=', api_key, '&limit=1000'),
+  ercot_energy_storage_resources = paste0(base_url, 'ercot_energy_storage_resources/query?api_key=', api_key, '&limit=1000')
+)
 
-#getting ercot_fuel_mix
-response <- GET(ercot_fuel_mix)
-data <- content(response, "text")
-ercot_fuel_mix_df <- fromJSON(data)$data
+# Function to fetch and parse JSON data
+fetch_data <- function(url, wait_time = WAIT_TIME) {
+  response <- GET(url)
+  Sys.sleep(wait_time)
+  parsed <- fromJSON(content(response, "text", encoding = "UTF-8"))
+  return(parsed$data)
+}
 
-# View first few rows
-head(ercot_fuel_mix_df)
+# Download all datasets
+ercot_load_forecast_dam_data <- fetch_data(urls$ercot_load_forecast_dam)
+load_data <- fetch_data(urls$load)
+ercot_unplanned_resource_outages_data <- fetch_data(urls$ercot_unplanned_resource_outages)
+ercot_fuel_mix_data <- fetch_data(urls$ercot_fuel_mix)
+ercot_solar_actual_and_forecast_hourly_data <- fetch_data(urls$ercot_solar_actual_and_forecast_hourly)
+ercot_temperature_forecast_by_weather_zone_data <- fetch_data(urls$ercot_temperature_forecast_by_weather_zone)
+ercot_energy_storage_resources_data <- fetch_data(urls$ercot_energy_storage_resources)
 ```
 
