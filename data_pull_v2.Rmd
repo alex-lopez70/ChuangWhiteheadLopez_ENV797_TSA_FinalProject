@@ -1,0 +1,49 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest)
+library(dataRetrieval)
+library(tidyverse);library(lubridate);library(viridis);library(here)
+library(httr)
+library(jsonlite)
+here()
+```
+
+```{r}
+#read csv files
+ERCOT_fuelmix_2017to2018 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_fuel_mix_112017_12312018.csv")
+ERCOT_fuelmix_2019to2021 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_fuel_mix_112019_12312021.csv")
+ERCOT_fuelmix_2022to2025 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_fuel_mix_112022_442025.csv")
+ERCOT_fuelmix <- rbind(
+  ERCOT_fuelmix_2017to2018,
+  ERCOT_fuelmix_2019to2021,
+  ERCOT_fuelmix_2022to2025
+)
+
+
+ERCOT_load_2017to2019 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_load_112017_12312019.csv")
+ERCOT_load_2020to2022 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_load_112020_12312022.csv")
+ERCOT_load_2023to2025 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_load_112023_442025.csv")
+ERCOT_load <- rbind(
+  ERCOT_load_2017to2019,
+  ERCOT_load_2020to2022,
+  ERCOT_load_2023to2025
+)
+
+ERCOT_Temp_2017to2019 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_Temp_112017_112020.csv")
+ERCOT_Temp_2020to2023 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_Temp_112020_112023.csv")
+ERCOT_Temp_2023to2025 <- read.csv("~/Desktop/ENV797 Final Project/Raw_Data/ERCOT_Temp_112023_452025.csv")
+ERCOT_temp <- rbind(
+  ERCOT_Temp_2017to2019,
+  ERCOT_Temp_2020to2023,
+  ERCOT_Temp_2023to2025
+)
+
+#write to csv
+#write.csv(ERCOT_fuelmix, file = "ERCOT_fuelmix.csv", row.names = FALSE)
+#write.csv(ERCOT_load, file = "ERCOT_load.csv", row.names = FALSE)
+#write.csv(ERCOT_temp, file = "ERCOT_temp.csv", row.names = FALSE)
+
+```
