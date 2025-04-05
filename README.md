@@ -2,13 +2,19 @@
 ERCOT Load Forecast
 
 Plan:
-Sat-Sun: organizing data
-- More recent pull of load data
-- See if we can pull more years of data (we can also choose to just download csv files from the website, which might be easier!)
-- Website where we can also just download files: https://www.gridstatus.io/datasets
-- Sample that's super similar to what we're doing: https://github.com/ENV797/TSA_Sp25/blob/main/Project/sample_projects/Sample1.pdf
 
-Sun: Running 5-8 different models
+Sun:
+- Training validation split
+  - Validation is last 365 days
+
+Models:
+- STL + ETS - Jess
+- ARIMA Fourier - Alex
+- TBATs - Daniel
+- Neural Network - Alex
+- Bayesian - Alex
+- SS Exponential smoothing - Daniel
+- Scenario Generation - Jess
 
 Mon: putting slides together!
 
