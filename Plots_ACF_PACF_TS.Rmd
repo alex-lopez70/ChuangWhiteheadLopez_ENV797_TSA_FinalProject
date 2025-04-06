@@ -13,7 +13,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(forecast)
 
-# Create a data frame for each time series with the corresponding series names (for the legend)
 ts_data <- data.frame(
   time = time(ts_load),
   load = ts_load,
