@@ -1,0 +1,80 @@
+#Models using monthly data
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+#Creating a monthly data set
+```{r}
+ERCOT_load_monthly <- ERCOT_load %>%
+  mutate(month = floor_date(Date, "month")) %>%
+  group_by(month) %>%
+  summarise(load = mean(load, na.rm = TRUE))
+
+ts_load_monthly <- ts(ERCOT_load_monthly$load, frequency = 12, start = c(2017, 1))
+ts_load_monthly_train <- subset(ts_load_monthly, end = length(ts_load_monthly)-12)
+
+```
+
+#SARIMA
+```{r}
+SARIMA_autofit <- auto.arima(ts_load_monthly_train)
+checkresiduals(SARIMA_autofit)
+
+#Generating forecasts
+#remember auto.arima does not call the forecast() internally so we need one more step
+SARIMA_forec <- forecast(SARIMA_autofit, h=12)
+plot(SARIMA_forec)
+
+#Plot model + observed data
+autoplot(ts_load_monthly) +
+  autolayer(SARIMA_forec, series = "SARIMA", PI=FALSE) +
+  ylab("Monthly Load")
+```
+
+#SS Exponential Smoothing
+```{r}
+SSES_seas <- es(ts_load_monthly_train, model="ZZZ",h=12,holdout=FALSE)
+plot(SSES_seas)
+checkresiduals(SSES_seas)
+
+SSES_forec <- forecast(SSES_seas, h=12)
+plot(SSES_forec)
+
+#Plot model + observed data
+autoplot(ts_load_monthly) +
+  autolayer(SSES_forec, series = "SSES", PI=FALSE) +
+  ylab("Monthly Load")
+```
+
+#SS BSM
+```{r}
+SS_seas <- StructTS(ts_load_monthly_train, type="BSM", fixed=c(NA,NA,NA,NA))
+checkresiduals(SS_seas)
+
+SS_forec <- forecast(SS_seas, h=12)
+plot(SS_forec)
+
+#Plot model + observed data
+autoplot(ts_load_monthly) +
+  autolayer(SS_forec, series = "SS BSM", PI=FALSE) +
+  ylab("Monthly Load")
+```
+
+#Plotting all monthly models together
+```{r}
+autoplot(ts_load_monthly) +
+  autolayer(SARIMA_forec, series = "SARIMA", PI=FALSE) +
+  autolayer(SSES_forec, series = "SSES", PI=FALSE) +
+  autolayer(SS_forec, series = "SS BSM", PI=FALSE) +
+  ylab("Monthly Load") +
+  guides(colour=guide_legend(title="Forecast"))
+```
+
