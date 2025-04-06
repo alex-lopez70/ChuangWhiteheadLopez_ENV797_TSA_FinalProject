@@ -46,3 +46,16 @@ ts_natural_gas <- msts(ERCOT_fuelmix$natural_gas, seasonal.periods = c(7,365.25)
 autoplot(ts_load)
 ```
 
+#Train/test Split
+```{r}
+n_for <-  365
+
+ts_load_train <- subset(ts_load,end = length(ts_load)-n_for) #stops 365 days before
+
+#create a subset for testing purpose
+ts_load_test <- subset(ts_load, start = length(ts_load)-n_for) #last 365 observations
+
+autoplot(ts_load_train)
+autoplot(ts_load_test)
+```
+

@@ -1,0 +1,286 @@
+#Scenario Generation
+
+## Setting R code chunk options
+
+First R code chunk is used for setting the options for all R code chunks.
+The choice echo=TRUE means both code and output will appear on report, include = FALSE neither code nor output is printed.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+## Loading packages and initializing
+
+Second R code chunk is for loading packages.
+By setting message = FALSE and warning = FALSE, the code will appear but it will node include messages and warnings.
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+```
+
+## Cholesky decomposition in R
+
+Notes from class:
+
+Suppose we have 3 variables that follow a $N(0,1)$ distribution and are highly correlated. We want to make sure that when we generate scenarios, i.e. draws from the normal distribution, for all three variable we take their correlation into account. In other words if they are highly positively correlated, higher values for one leads to higher values for the other two. 
+
+Project step: generating scenarios for all of our predictor variables (temperature, coal and lignite, hydro, natural gas, nuclear, solar, wind)
+
+```{r}
+
+nvar=7
+nscen=1000
+
+#Generate 1000 normal random variates for each of the 7 predictor variables
+X=array(0,c(nvar,nscen))
+for(i in 1:nvar){
+  X[i,]=rnorm(nscen,mean=0,sd=1)   
+}
+```
+
+The 1000 normal variate were independently generated, so if we calculate the correlation we will not find a significant correlation among the three variables.
+
+```{r}
+#Calculating correlation matrix R
+#finding correlation among three values (values should be close to 0)
+Xcor=cor(t(X))  
+
+# Note: the t(X) will return the transpose of matrix X. 
+# We need to transpose so that cor() function finds the correlations
+# among the three variable and not among the 1000 scenarios
+
+print(Xcor)
+```
+
+From historical data, calculating the correlation among the seven variables, then storing the correlation on a correlation matrix R.
+
+```{r}
+#Getting correlation matrix from historical data.
+
+#Need to create one dataframe with all the columns of the predictor variables of interest
+
+# keeping time stamp and Average temp from ERCOT_temp
+
+# Keeping time stamp and fuel mix columns
+fuel_mix_sub <- ERCOT_fuelmix[ , c("Date", "coal_and_lignite", "hydro", "nuclear", "solar", "wind", "natural_gas")]
+
+merged_df <- merge(ERCOT_temp_daily, fuel_mix_sub, by = "Date", all = TRUE)
+
+#Finding correlation matrix, excluding date column
+R <- cor(merged_df[ , -1], use = "complete.obs")
+
+print(R)
+```
+
+We want our draws to account for that correlation, o.w., we may be generating scenarios that are not realistic. We will pass this correlation matrix R through our generated scenarios X using Cholesky decomposition.
+
+
+```{r}
+# Get Cholesky decomposition, chol() will give upper triangular matrix
+U=chol(R)
+print(U)
+
+# Transpose U to get lower triangular matrix just 
+L=t(U) 
+print(L)
+```
+Any matrix can be decomposed into two other matrix, and this is how we can decompose R to upper and lower triangular matrix.
+
+This lower triangular matrix (3x3) will be multiplied by our scenarios matrix X (7x1000) and will lead to new 1000 scenarios.
+
+```{r}
+#Passing the correlation matrix R to the scenarios in matrix X
+
+Y=L%*%X   # the symbol %*% is for matrix multiplication 
+
+# Checking if the correlation of generated scenarios matches matrix R
+Ycor=cor(t(Y))  
+print(Ycor) #compare Ycor with R and you will see it worked.
+#you create correlation between variables by manipulating draws of other variables (note row one same between Y and X, different for bottom two rows)
+```
+Essentially trying to represent real life relationships in randomly drawn values for variables. --> guaranteeing your scenarios are correlated and represent what could happen in real life
+
+## Generating scenarios with ARIMA model
+
+Now let's consider a real world applications of scenario generation based on the ARIMA model.
+
+```{r}
+#transforming into normal distribution as we create the ts object
+ts_load_transformed <- ts(log(ERCOT_load$load), frequency = 12, 
+                start = c(2017,1,1))
+
+autoplot(ts_load_transformed)
+autoplot(ts_load)
+#the data does not follow normal distribution, which is why we are taking the log of the data!
+#Check this one with team! It's def not normally distributed, but log transformation doesn't seem like it does much?
+```
+
+```{r}
+# Create Fourier terms (K = 2 harmonics)
+xreg_hist <- merged_df[ , -1]  # Remove Date column
+
+K <- 2
+fourier_terms <- fourier(ts_load_transformed, K = K)
+xreg_full <- cbind(fourier_terms, xreg_hist)
+
+# Fit ARIMA + Fourier model with exogenous variables
+fit_arima_fourier <- auto.arima(ts_load_transformed, xreg = as.matrix(xreg_full))
+
+# Forecast horizon and number of scenarios
+horizon <- 12
+nscen <- 10
+
+#Reshaping Y [horizon x nvar x nscen] to align with monthly steps
+nvar <- 7
+Y <- array(Y, dim = c(nvar, horizon, nscen))  # reshaped if needed
+
+# Generate Fourier terms for forecast horizon
+future_fourier <- fourier(ts_load_transformed, K = K, h = horizon)
+
+# Array for storing load scenarios
+load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
+
+# Generating load scenarios using future Fourier + predictor simulations
+for (s in 1:nscen) {
+  # Extract simulated predictor values for this scenario
+  predictors_sim <- t(Y[ , , s])  # [12 x 7]
+  
+  # Combine Fourier + predictors
+  xreg_future <- cbind(future_fourier, predictors_sim)
+  
+  #Make sure column names match training set
+  colnames(xreg_future) <- colnames(xreg_full)
+  
+  # Forecast load using model
+  forecast_result <- forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
+  
+  # Manually compute forecast std dev
+  load_sd <- (forecast_result$upper[ , 1] - forecast_result$lower[ , 1]) / 
+             (2 * qnorm(0.5 + forecast_result$level[1] / 200))
+  
+  # Generate stochastic scenario
+  load_scenarios[ , s] <- rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+}
+
+# Back-transform from log to actual load
+load_scenarios_exp <- exp(load_scenarios)
+```
+
+Generate ARIMA + Fourier model for load, and now we're generating scenarios.
+
+I want to calculate all possible scenarios and optimize over those!
+
+Note that the correlation is closer to the sample correlation matrix R.
+Just to illustrate what we have done let's plot the scenarios that we generated
+
+```{r}
+# Set y-axis range
+ymin <- min(load_scenarios_exp)
+ymax <- max(load_scenarios_exp)
+
+# Plot the first scenario
+plot(load_scenarios_exp[ , 1], type = "l", col = "gray", ylim = c(ymin, ymax),
+     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+
+# Add rest of the scenarios
+for (s in 2:nscen) {
+  lines(load_scenarios_exp[ , s], col = "gray")
+}
+
+# Add the point forecast (mean of each month across all scenarios)
+lines(rowMeans(load_scenarios_exp), col = "blue", lwd = 2)
+
+legend("topright", legend = c("Forecast Mean", "Scenarios"), col = c("blue", "gray"), lty = 1, lwd = c(2, 1))
+
+```
+This is a representation of what the 1 year/12 months ahead that we are generating. 
+
+
+#Doing it without transforming load (because values look weird in the transformed load)
+```{r}
+# Create Fourier terms (K = 2 harmonics)
+xreg_hist <- merged_df[ , -1]  # Remove Date column
+
+ts_load_2 <- ts(log(ERCOT_load$load), frequency = 12, start = c(2017, 1))
+
+K <- 2
+fourier_terms <- fourier(ts_load_2, K = K)
+xreg_full <- cbind(fourier_terms, xreg_hist)
+
+# Fit ARIMA + Fourier model with exogenous variables
+fit_arima_fourier <- auto.arima(ts_load_2, xreg = as.matrix(xreg_full))
+
+# Forecast horizon and number of scenarios
+horizon <- 12
+nscen <- 10
+
+#Reshaping Y [horizon x nvar x nscen] to align with monthly steps
+nvar <- 7
+Y <- array(Y, dim = c(nvar, horizon, nscen))  # reshaped if needed
+
+# Generate Fourier terms for forecast horizon
+future_fourier <- fourier(ts_load_2, K = K, h = horizon)
+
+# Array for storing load scenarios
+load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
+
+# Generating load scenarios using future Fourier + predictor simulations
+for (s in 1:nscen) {
+  # Extract simulated predictor values for this scenario
+  predictors_sim <- t(Y[ , , s])  # [12 x 7]
+  
+  # Combine Fourier + predictors
+  xreg_future <- cbind(future_fourier, predictors_sim)
+  
+  #Make sure column names match training set
+  colnames(xreg_future) <- colnames(xreg_full)
+  
+  # Forecast load using model
+  forecast_result <- forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
+  
+  # Manually compute forecast std dev
+  load_sd <- (forecast_result$upper[ , 1] - forecast_result$lower[ , 1]) / 
+             (2 * qnorm(0.5 + forecast_result$level[1] / 200))
+  
+  # Generate stochastic scenario
+  load_scenarios[ , s] <- rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+}
+
+```
+
+Generate ARIMA + Fourier model for load, and now we're generating scenarios.
+
+I want to calculate all possible scenarios and optimize over those!
+
+Note that the correlation is closer to the sample correlation matrix R.
+Just to illustrate what we have done let's plot the scenarios that we generated
+
+```{r}
+# Set y-axis range
+ymin <- min(load_scenarios)
+ymax <- max(load_scenarios)
+
+# Plot the first scenario
+plot(load_scenarios[ , 1], type = "l", col = "gray", ylim = c(ymin, ymax),
+     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+
+# Add rest of the scenarios
+for (s in 2:nscen) {
+  lines(load_scenarios[ , s], col = "gray")
+}
+
+# Add the point forecast (mean of each month across all scenarios)
+lines(rowMeans(load_scenarios), col = "blue", lwd = 2)
+
+legend("topright", legend = c("Forecast Mean", "Scenarios"), col = c("blue", "gray"), lty = 1, lwd = c(2, 1))
+
+```
