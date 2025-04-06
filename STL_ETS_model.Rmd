@@ -1,0 +1,25 @@
+#STL + ETS Model
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+```{r}
+#Fit and forecast STL + ETS model to data
+ETS_fit <-  stlf(ts_load_train,h=365)
+
+#Plot foresting results
+autoplot(ETS_fit) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
+  ylab("Load")
+```
