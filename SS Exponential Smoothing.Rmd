@@ -1,0 +1,45 @@
+---
+title: "SS Exponential"
+author: "Daniel"
+date: "2025-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Arithmetic Mean
+MEAN_seas <- meanf(y = ts_load_train, h = 12)  # Forecast for 12 months
+checkresiduals(MEAN_seas)
+plot(MEAN_seas)
+
+```
+
+```{r}
+# Seasonal Naive
+SNAIVE_seas <- snaive(ts_load_train, h = 12, holdout = FALSE)
+checkresiduals(SNAIVE_seas)
+plot(SNAIVE_seas)
+
+```
+
+```{r}
+# SS Exponential Smoothing
+SSES_seas <- es(ts_load_train, model = "ZZZ", h = 12, holdout = FALSE)
+plot(SSES_seas)
+checkresiduals(SSES_seas)
+```
+
+
+```{r}
+autoplot(ts_load_train) + 
+  autolayer(MEAN_seas, PI = FALSE, series = "Mean") +
+  autolayer(SNAIVE_seas, PI = FALSE, series = "Naïve") +
+  autolayer(SSES_seas$forecast, series = "SSES") +
+  xlab("Time") + ylab("Electricity Load") +
+  guides(colour = guide_legend(title = "Forecast"))
+```
+
+
