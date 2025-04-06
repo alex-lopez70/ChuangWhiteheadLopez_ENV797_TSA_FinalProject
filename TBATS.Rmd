@@ -1,0 +1,43 @@
+---
+title: "TBATS"
+author: "Daniel"
+date: "2025-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Packages}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+# TBATS
+
+```{r}
+# Fit the TBATS model
+TBATS_fit <- tbats(ts_load_train)
+
+# Forecast for the next 365 periods
+TBATS_for <- forecast(TBATS_fit, h=365)
+
+# Plot forecast results
+autoplot(TBATS_for) + 
+  ylab("Load")
+
+# Plot model + observed data (assuming ts_load_train is the original series)
+autoplot(ts_load) +
+  autolayer(TBATS_for, series="TBATS Forecast", PI=FALSE) +
+  ylab("Load") +
+  ggtitle("Observed Data and TBATS Forecast")
+```
+
