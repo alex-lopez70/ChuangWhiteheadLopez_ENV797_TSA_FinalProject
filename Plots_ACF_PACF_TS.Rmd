@@ -1,8 +1,5 @@
 
 ```{r}
-library(ggplot2)
-library(forecast)
-
 ts_data <- data.frame(
   time = time(ts_load),
   load = ts_load,
@@ -24,7 +21,7 @@ autoplot(ts_load) +
   autolayer(ts_natural_gas, series = "Natural Gas", size = 0.3, alpha = 0.6) +
   ggtitle("Load Over Time By Sector") +
   xlab("Time") +
-  ylab("Value") +
+  ylab("Load (MW)") +
   scale_color_manual(values = c("darkgreen", "red", "skyblue", "midnightblue", "orange", "pink", "yellow", "grey")) + 
   theme_minimal() +
   guides(colour = guide_legend(title = "Time Series"))
@@ -34,7 +31,7 @@ autoplot(ts_load) +
 autoplot(ts_temp) +
   ggtitle("ERCOT Area Temperature") +
   xlab("Time") +
-  ylab("Temperature") +
+  ylab("Temperature°F") +
   theme_minimal()
 ```
 
