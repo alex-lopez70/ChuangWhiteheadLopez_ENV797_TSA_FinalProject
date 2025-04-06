@@ -1,6 +1,8 @@
 # ChuangWhiteheadLopez_ENV797_TSA_FinalProject
 ERCOT Load Forecast
 
+Run data_pull followed by ts_object_creation before modeling!
+
 Plan:
 
 Sun:
