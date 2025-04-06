@@ -1,0 +1,144 @@
+#ARIMA + FOURIER terms Model
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+```{r}
+#Fit arima model with fourier terms as exogenous regressors
+ARIMA_Fourier_fit23 <- auto.arima(ts_load_train, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_load_train, 
+                                          K=c(2,3))
+                             )
+
+ARIMA_Fourier_forec23 <- forecast(ARIMA_Fourier_fit23,
+                           xreg=fourier(ts_load_train,
+                                        K=c(2,3),
+                                        h=365),
+                           h=365
+                           ) 
+
+#Plot forecasting results
+autoplot(ARIMA_Fourier_forec23) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(ARIMA_Fourier_forec23, series="ARIMA_FOURIER", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+#Fit arima model with fourier terms as exogenous regressors
+ARIMA_Fourier_fit24 <- auto.arima(ts_load_train, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_load_train, 
+                                          K=c(2,4))
+                             )
+
+ARIMA_Fourier_forec24 <- forecast(ARIMA_Fourier_fit24,
+                           xreg=fourier(ts_load_train,
+                                        K=c(2,4),
+                                        h=365),
+                           h=365
+                           ) 
+
+#Plot forecasting results
+autoplot(ARIMA_Fourier_forec24) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(ARIMA_Fourier_forec24, series="ARIMA_FOURIER", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+#Fit arima model with fourier terms as exogenous regressors
+ARIMA_Fourier_fit26 <- auto.arima(ts_load_train, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_load_train, 
+                                          K=c(2,6))
+                             )
+
+ARIMA_Fourier_forec26 <- forecast(ARIMA_Fourier_fit26,
+                           xreg=fourier(ts_load_train,
+                                        K=c(2,6),
+                                        h=365),
+                           h=365
+                           ) 
+
+#Plot forecasting results
+autoplot(ARIMA_Fourier_forec26) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(ARIMA_Fourier_forec26, series="ARIMA_FOURIER", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+#Fit arima model with fourier terms as exogenous regressors
+ARIMA_Fourier_fit36 <- auto.arima(ts_load_train, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_load_train, 
+                                          K=c(3,6))
+                             )
+
+ARIMA_Fourier_forec36 <- forecast(ARIMA_Fourier_fit36,
+                           xreg=fourier(ts_load_train,
+                                        K=c(3,6),
+                                        h=365),
+                           h=365
+                           ) 
+
+#Plot forecasting results
+autoplot(ARIMA_Fourier_forec36) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(ARIMA_Fourier_forec36, series="ARIMA_FOURIER", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+
+#ARIMA Fourier 23
+ARIMAFou_scores23 <- accuracy(ARIMA_Fourier_forec23$mean,ts_load_test)
+
+#ARIMA Fourier 24
+ARIMAFou_scores24 <- accuracy(ARIMA_Fourier_forec24$mean,ts_load_test)
+
+#ARIMA Fourier 26
+ARIMAFou_scores26 <- accuracy(ARIMA_Fourier_forec26$mean,ts_load_test)
+
+#ARIMA Fourier 36
+ARIMAFou_scores36 <- accuracy(ARIMA_Fourier_forec36$mean,ts_load_test)
+
+# Create data frame
+ARIMAFou_scores <- as.data.frame(
+  rbind(ARIMAFou_scores23, ARIMAFou_scores24, ARIMAFou_scores26, ARIMAFou_scores36)
+  )
+row.names(ARIMAFou_scores) <- c("AF23","AF24", "AF26", "AF36")
+
+# Construct tables
+kbl(ARIMAFou_scores, 
+      caption = "Forecast Accuracy for Daily Load",
+      digits = array(5,ncol(ARIMAFou_scores))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
+```

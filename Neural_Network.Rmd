@@ -1,0 +1,103 @@
+#Neural Network Time Series Forecasts Model
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+```{r}
+#Fit NN Model
+NN_fit_24 <- nnetar(ts_load_train,
+                 p=1,
+                 P=1,
+                 xreg=fourier(ts_load_train, K=c(2,4)))
+
+NN_forec_24 <- forecast(NN_fit_24, h=365, xreg=fourier(ts_load_train, 
+                                          K=c(2,4), h=365))
+
+
+#Plot forecasting results
+autoplot(NN_forec_24) +
+  ylab("Load") 
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(NN_forec_24, series="Neural Network", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+#Fit NN Model
+NN_fit_26 <- nnetar(ts_load_train,
+                 p=1,
+                 P=1,
+                 xreg=fourier(ts_load_train, K=c(2,6)))
+
+NN_forec_26 <- forecast(NN_fit_26, h=365, xreg=fourier(ts_load_train, 
+                                          K=c(2,6), h=365))
+
+
+#Plot forecasting results
+autoplot(NN_forec_26) +
+  ylab("Load") 
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(NN_forec_26, series="Neural Network", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+#Fit NN Model
+NN_fit_36 <- nnetar(ts_load_train,
+                 p=1,
+                 P=1,
+                 xreg=fourier(ts_load_train, K=c(3,6)))
+
+NN_forec_36 <- forecast(NN_fit_36, h=365, xreg=fourier(ts_load_train, 
+                                          K=c(3,6), h=365))
+
+
+#Plot forecasting results
+autoplot(NN_forec_36) +
+  ylab("Load") 
+
+#Plot model + observed data
+autoplot(ts_load) +
+  autolayer(NN_forec_36, series="Neural Network", PI=FALSE) +
+  ylab("Load")
+
+```
+
+```{r}
+
+#Neural Network 24
+NN_scores24 <- accuracy(NN_forec_24$mean,ts_load_test)
+
+#Neural Network 26
+NN_scores26 <- accuracy(NN_forec_26$mean,ts_load_test)
+
+#Neural Network 36
+NN_scores36 <- accuracy(NN_forec_36$mean,ts_load_test)
+
+# Create data frame
+NNscores <- as.data.frame(
+  rbind(NN_scores24, NN_scores26, NN_scores36)
+  )
+row.names(NNscores) <- c("NN24","NN26", "NN36")
+
+# Construct tables
+kbl(NNscores, 
+      caption = "Forecast Accuracy for Daily Load",
+      digits = array(5,ncol(NNscores))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
+```
