@@ -75,9 +75,6 @@ fuel_mix_sub <- ERCOT_fuelmix[ , c("Date", "coal_and_lignite", "hydro", "nuclear
 
 merged_df <- merge(ERCOT_temp_daily, fuel_mix_sub, by = "Date", all = TRUE)
 
-merged_df <- merged_df %>%
-  rename(Average_temp = Average)
-
 #Finding correlation matrix, excluding date column
 R <- cor(merged_df[ , -1], use = "complete.obs")
 
