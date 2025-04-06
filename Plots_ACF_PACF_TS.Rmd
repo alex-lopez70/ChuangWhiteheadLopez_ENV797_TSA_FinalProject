@@ -1,0 +1,152 @@
+---
+title: "Plots_acf_pacf_ts"
+author: "Daniel"
+date: "2025-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(forecast)
+
+# Create a data frame for each time series with the corresponding series names (for the legend)
+ts_data <- data.frame(
+  time = time(ts_load),
+  load = ts_load,
+  temperature = ts_temp,
+  coal_and_lignite = ts_coal_and_lignite,
+  hydro = ts_hydro,
+  nuclear = ts_nuclear,
+  solar = ts_solar,
+  wind = ts_wind,
+  natural_gas = ts_natural_gas
+)
+
+autoplot(ts_load) +
+  autolayer(ts_coal_and_lignite, series = "Coal and Lignite", size = 0.3, alpha = 0.6) +
+  autolayer(ts_hydro, series = "Hydro", size = 0.3, alpha = 0.6) +
+  autolayer(ts_nuclear, series = "Nuclear", size = 0.3, alpha = 0.6) +
+  autolayer(ts_solar, series = "Solar", size = 0.3, alpha = 0.6) +
+  autolayer(ts_wind, series = "Wind", size = 0.3, alpha = 0.6) +
+  autolayer(ts_natural_gas, series = "Natural Gas", size = 0.3, alpha = 0.6) +
+  ggtitle("Load Over Time By Sector") +
+  xlab("Time") +
+  ylab("Value") +
+  scale_color_manual(values = c("darkgreen", "red", "skyblue", "midnightblue", "orange", "pink", "yellow", "grey")) + 
+  theme_minimal() +
+  guides(colour = guide_legend(title = "Time Series"))
+```
+
+```{r Temp TS}
+autoplot(ts_temp) +
+  ggtitle("ERCOT Area Temperature") +
+  xlab("Time") +
+  ylab("Temperature") +
+  theme_minimal()
+```
+
+# Load ACF & PACF
+
+```{r Load ACF & PACF}
+# ACF and PACF for ERCOT Load
+ggAcf(ts_load) + ggtitle("ACF of ERCOT Load") + theme_minimal()
+ggPacf(ts_load) + ggtitle("PACF of ERCOT Load") + theme_minimal()
+```
+
+# Temp ACF & PACF
+
+```{r Temp ACF & PACF}
+# ACF and PACF for ERCOT Temperature
+ggAcf(ts_temp) + ggtitle("ACF of ERCOT Temperature") + theme_minimal()
+ggPacf(ts_temp) + ggtitle("PACF of ERCOT Temperature") + theme_minimal()
+```
+
+# ACF and PACF for Coal and Lignite
+
+```{r ACF and PACF for Coal and Lignite}
+# ACF and PACF for Coal and Lignite
+ggAcf(ts_coal_and_lignite) + ggtitle("ACF of Coal and Lignite") + theme_minimal()
+ggPacf(ts_coal_and_lignite) + ggtitle("PACF of Coal and Lignite") + theme_minimal()
+
+```
+
+
+# ACF and PACF for Hydro
+
+```{r ACF and PACF for Hydro}
+# ACF and PACF for Hydro
+ggAcf(ts_hydro) + ggtitle("ACF of Hydro") + theme_minimal()
+ggPacf(ts_hydro) + ggtitle("PACF of Hydro") + theme_minimal()
+```
+
+# ACF and PACF for Nuclear
+
+```{r ACF and PACF for Nuclear}
+# ACF and PACF for Nuclear
+ggAcf(ts_nuclear) + ggtitle("ACF of Nuclear") + theme_minimal()
+ggPacf(ts_nuclear) + ggtitle("PACF of Nuclear") + theme_minimal()
+```
+
+# ACF and PACF for Solar
+
+```{r ACF and PACF for Solar}
+# ACF and PACF for Solar
+ggAcf(ts_solar) + ggtitle("ACF of Solar") + theme_minimal()
+ggPacf(ts_solar) + ggtitle("PACF of Solar") + theme_minimal()
+```
+
+# ACF and PACF for Wind
+
+```{r ACF and PACF for Wind}
+# ACF and PACF for Wind
+ggAcf(ts_wind) + ggtitle("ACF of Wind") + theme_minimal()
+ggPacf(ts_wind) + ggtitle("PACF of Wind") + theme_minimal()
+```
+
+# ACF and PACF for Natural Gas
+
+```{r ACF and PACF for Natural Gas}
+# ACF and PACF for Natural Gas
+ggAcf(ts_natural_gas) + ggtitle("ACF of Natural Gas") + theme_minimal()
+ggPacf(ts_natural_gas) + ggtitle("PACF of Natural Gas") + theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
