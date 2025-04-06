@@ -18,7 +18,7 @@ autoplot(ts_natural_gas, series = "Natural Gas", size = 0.3, alpha = 0.6) +
   autolayer(ts_nuclear, series = "Nuclear", size = 0.5, alpha = 0.6) +
   autolayer(ts_solar, series = "Solar", size = 0.3, alpha = 0.6) +
   autolayer(ts_wind, series = "Wind", size = 0.4, alpha = 0.6) +
-  ggtitle("Load By Fuel") +
+  ggtitle("ERCOT Fuel Mix") +
   xlab("Time") +
   ylab("Load (MW)") +
   scale_color_manual(values = c("darkgreen", "red", "skyblue2", "midnightblue", "orange", "pink")) + 
