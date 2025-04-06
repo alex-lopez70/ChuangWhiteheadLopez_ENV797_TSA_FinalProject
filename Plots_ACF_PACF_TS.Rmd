@@ -1,13 +1,3 @@
----
-title: "Plots_acf_pacf_ts"
-author: "Daniel"
-date: "2025-04-06"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ```{r}
 library(ggplot2)
