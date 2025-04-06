@@ -135,24 +135,23 @@ fourier_terms <- fourier(ts_load_transformed, K = K)
 xreg_full <- cbind(fourier_terms, xreg_hist)
 
 # Fit ARIMA + Fourier model with exogenous variables
-fit_arima_fourier <- auto.arima(load_ts, xreg = xreg_full)
+fit_arima_fourier <- auto.arima(ts_load_transformed, xreg = as.matrix(xreg_full))
 
 # Forecast horizon and number of scenarios
 horizon <- 12
 nscen <- 10
 
-# Generate simulated future predictors (Y from Cholesky step, already done)
-# Let's reshape it to [horizon x nvar x nscen] to align with monthly steps
+#Reshaping Y [horizon x nvar x nscen] to align with monthly steps
 nvar <- 7
 Y <- array(Y, dim = c(nvar, horizon, nscen))  # reshaped if needed
 
 # Generate Fourier terms for forecast horizon
-future_fourier <- fourier(load_ts, K = K, h = horizon)
+future_fourier <- fourier(ts_load_transformed, K = K, h = horizon)
 
-# Prepare array for storing load scenarios
+# Array for storing load scenarios
 load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
 
-# Generate load scenarios using future Fourier + predictor simulations
+# Generating load scenarios using future Fourier + predictor simulations
 for (s in 1:nscen) {
   # Extract simulated predictor values for this scenario
   predictors_sim <- t(Y[ , , s])  # [12 x 7]
@@ -189,7 +188,7 @@ ymax <- max(load_scenarios_exp)
 
 # Plot the first scenario
 plot(load_scenarios_exp[ , 1], type = "l", col = "gray", ylim = c(ymin, ymax),
-     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMAX + Fourier)")
+     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
 
 # Add rest of the scenarios
 for (s in 2:nscen) {
