@@ -81,6 +81,7 @@ R <- cor(merged_df[ , -1], use = "complete.obs")
 print(R)
 ```
 
+
 We want our draws to account for that correlation, o.w., we may be generating scenarios that are not realistic. We will pass this correlation matrix R through our generated scenarios X using Cholesky decomposition.
 
 
@@ -109,7 +110,9 @@ print(Ycor) #compare Ycor with R and you will see it worked.
 ```
 Essentially trying to represent real life relationships in randomly drawn values for variables. --> guaranteeing your scenarios are correlated and represent what could happen in real life
 
-## Generating scenarios with ARIMA model
+#Ignore this! Old work
+
+## Generating scenarios with ARIMA model (I also did it without the MSTS object, so may have to update)
 
 Now let's consider a real world applications of scenario generation based on the ARIMA model.
 
@@ -205,7 +208,9 @@ legend("topright", legend = c("Forecast Mean", "Scenarios"), col = c("blue", "gr
 This is a representation of what the 1 year/12 months ahead that we are generating. 
 
 
-#Doing it without transforming load (because values look weird in the transformed load)
+
+#Ignore this! Old work
+##Doing it without transforming load (because values look weird in the transformed load) (I also did it without the msts object, so will update)
 ```{r}
 # Create Fourier terms (K = 2 harmonics)
 xreg_hist <- merged_df[ , -1]  # Remove Date column
@@ -284,3 +289,138 @@ lines(rowMeans(load_scenarios), col = "blue", lwd = 2)
 legend("topright", legend = c("Forecast Mean", "Scenarios"), col = c("blue", "gray"), lty = 1, lwd = c(2, 1))
 
 ```
+
+
+#Final scenario generation model
+
+##Train/test version
+
+Need to remove last 365 from the temperature/fuel mix stuff
+
+use only load_train
+do the scenarios for the next 365 days (and compare with the load_test data)
+
+```{r}
+merged_df_train <- merged_df[1:(nrow(merged_df) - 365), ]
+
+#Finding correlation matrix, excluding date column
+R <- cor(merged_df_train[ , -1], use = "complete.obs")
+
+print(R)
+```
+
+We want our draws to account for that correlation, o.w., we may be generating scenarios that are not realistic. We will pass this correlation matrix R through our generated scenarios X using Cholesky decomposition.
+
+
+```{r}
+# Get Cholesky decomposition, chol() will give upper triangular matrix
+U=chol(R)
+print(U)
+
+# Transpose U to get lower triangular matrix just 
+L=t(U) 
+print(L)
+```
+Any matrix can be decomposed into two other matrix, and this is how we can decompose R to upper and lower triangular matrix.
+
+This lower triangular matrix (3x3) will be multiplied by our scenarios matrix X (7x1000) and will lead to new 1000 scenarios.
+
+```{r}
+#Passing the correlation matrix R to the scenarios in matrix X
+
+Y=L%*%X   # the symbol %*% is for matrix multiplication 
+
+# Checking if the correlation of generated scenarios matches matrix R
+Ycor=cor(t(Y))  
+print(Ycor) #compare Ycor with R and you will see it worked.
+#you create correlation between variables by manipulating draws of other variables (note row one same between Y and X, different for bottom two rows)
+```
+Essentially trying to represent real life relationships in randomly drawn values for variables. --> guaranteeing your scenarios are correlated and represent what could happen in real life
+
+## Generating scenarios with ARIMA + Fourier model
+
+```{r}
+# Create Fourier terms (K = 2 harmonics)
+xreg_hist <- merged_df_train[ , -1]  # Remove Date column
+
+ts_load_train_transformed <- log(ts_load_train)
+
+K <- c(2,8)
+fourier_terms <- fourier(ts_load_train_transformed, K = K)
+xreg_full <- cbind(fourier_terms, xreg_hist)
+
+# Fit ARIMA + Fourier model with exogenous variables
+fit_arima_fourier <- auto.arima(ts_load_train_transformed, seasonal = FALSE, xreg = as.matrix(xreg_full))
+
+# Forecast horizon and number of scenarios
+horizon <- 365 #data is daily, so forecasting the next 365 days
+nscen <- 10
+
+#Reshaping Y [horizon x nvar x nscen] to align with monthly steps
+nvar <- 7
+Y <- array(Y, dim = c(nvar, horizon, nscen))  # reshaped if needed
+
+# Generate Fourier terms for forecast horizon
+future_fourier <- fourier(ts_load_transformed, K = K, h = horizon)
+
+# Array for storing load scenarios
+load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
+
+# Generating load scenarios using future Fourier + predictor simulations
+for (s in 1:nscen) {
+  # Extract simulated predictor values for this scenario
+  predictors_sim <- t(Y[ , , s])  # [12 x 7]
+  
+  # Combine Fourier + predictors
+  xreg_future <- cbind(future_fourier, predictors_sim)
+  
+  #Make sure column names match training set
+  colnames(xreg_future) <- colnames(xreg_full)
+  
+  # Forecast load using model
+  forecast_result <- forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
+  
+  # Manually compute forecast std dev
+  load_sd <- (forecast_result$upper[ , 1] - forecast_result$lower[ , 1]) / 
+             (2 * qnorm(0.5 + forecast_result$level[1] / 200))
+  
+  # Generate stochastic scenario
+  load_scenarios[ , s] <- rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+}
+
+# Back-transform from log to actual load
+load_scenarios_exp <- exp(load_scenarios)
+```
+
+Generate ARIMA + Fourier model for load, and now we're generating scenarios.
+
+I want to calculate all possible scenarios and optimize over those!
+
+```{r}
+# Set y-axis range
+ymin <- min(load_scenarios_exp)
+ymax <- max(load_scenarios_exp)
+
+# Plot the first scenario
+plot(load_scenarios_exp[ , 1], type = "l", col = "gray", ylim = c(ymin, ymax),
+     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+
+# Add rest of the scenarios
+for (s in 2:nscen) {
+  lines(load_scenarios_exp[ , s], col = "gray")
+}
+
+# Add the point forecast (mean of each month across all scenarios)
+lines(rowMeans(load_scenarios_exp), col = "blue", lwd = 2)
+
+# Add test data as a red line on top
+lines(ts_load_test, col = "red", lwd = 2, lty = 2)
+
+# Update legend to include test data
+legend("topright",
+       legend = c("Forecast Mean", "Scenarios", "Actual Load (Test)"),
+       col = c("blue", "gray", "red"),
+       lty = c(1, 1, 2),
+       lwd = c(2, 1, 2))
+```
+This is a representation of the 365 days we are generating. 
