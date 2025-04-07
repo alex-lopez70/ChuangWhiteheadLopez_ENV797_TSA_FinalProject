@@ -20,6 +20,7 @@ ERCOT_load_monthly <- ERCOT_load %>%
 
 ts_load_monthly <- ts(ERCOT_load_monthly$load, frequency = 12, start = c(2017, 1))
 ts_load_monthly_train <- subset(ts_load_monthly, end = length(ts_load_monthly)-12)
+ts_load_monthly_test <- subset(ts_load_monthly, start = length(ts_load_monthly)-12)
 
 ```
 
