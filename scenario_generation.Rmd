@@ -27,11 +27,11 @@ library(zoo)
 library(kableExtra)
 ```
 
-## Cholesky decomposition in R
+## Cholesky decomposition in R (Notes)
 
 Notes from class:
 
-Suppose we have 3 variables that follow a $N(0,1)$ distribution and are highly correlated. We want to make sure that when we generate scenarios, i.e. draws from the normal distribution, for all three variable we take their correlation into account. In other words if they are highly positively correlated, higher values for one leads to higher values for the other two. 
+Suppose w (Noe have 3 variables that follow a $N(0,1)$ distribution and are highly correlated. We want to make sure that when we generate scenarios, i.e. draws from the normal distribution, for all three variable we take their correlation into account. In other words if they are highly positively correlated, higher values for one leads to higher values for the other two. 
 
 Project step: generating scenarios for all of our predictor variables (temperature, coal and lignite, hydro, natural gas, nuclear, solar, wind)
 
@@ -291,6 +291,7 @@ legend("topright", legend = c("Forecast Mean", "Scenarios"), col = c("blue", "gr
 ```
 
 
+
 #Final scenario generation model
 
 ##Train/test version
@@ -340,56 +341,75 @@ Essentially trying to represent real life relationships in randomly drawn values
 ## Generating scenarios with ARIMA + Fourier model
 
 ```{r}
+#This was working weirdly with the msts object, so recreating ts_objects to work with here
+ts_load <-ts(ERCOT_load$load, frequency = 365, start = c(2017, 1))
+
+n_for <-  365
+
+ts_load_train <- subset(ts_load,end = length(ts_load)-n_for) #stops 365 days before
+
+#create a subset for testing purpose
+ts_load_test <- subset(ts_load, start = length(ts_load)-n_for) #last 365 observations
+
+autoplot(ts_load_train)
+autoplot(ts_load_test)
+
+```
+
+```{r}
 # Create Fourier terms (K = 2 harmonics)
 xreg_hist <- merged_df_train[ , -1]  # Remove Date column
 
-ts_load_train_transformed <- log(ts_load_train)
+# Step 2: Generate Fourier terms (K must match seasonal.periods length)
+K <- 2  # 2 harmonics for weekly, 8 for annual
+fourier_terms <- fourier(ts_load_train, K = K)
 
-K <- c(2,8)
-fourier_terms <- fourier(ts_load_train_transformed, K = K)
+# Step 3: Combine Fourier + exogenous regressors
+xreg_hist <- merged_df_train[ , -1]  # Drop Date column
 xreg_full <- cbind(fourier_terms, xreg_hist)
 
-# Fit ARIMA + Fourier model with exogenous variables
-fit_arima_fourier <- auto.arima(ts_load_train_transformed, seasonal = FALSE, xreg = as.matrix(xreg_full))
+# Step 4: Fit ARIMA on raw load with Fourier + xregs
+fit_arima_fourier <- auto.arima(ts_load_train, 
+                                 seasonal = FALSE, 
+                                 xreg = as.matrix(xreg_full))
 
-# Forecast horizon and number of scenarios
-horizon <- 365 #data is daily, so forecasting the next 365 days
+# Step 5: Forecast setup
+horizon <- 365
 nscen <- 10
+nvar <- 7  # number of exogenous predictors
 
+# Step 6: Generate future Fourier terms
+future_fourier <- fourier(ts_load_train, K = K, h = horizon)
+
+# Step 7: Simulated predictor array (already created)
 #Reshaping Y [horizon x nvar x nscen] to align with monthly steps
-nvar <- 7
 Y <- array(Y, dim = c(nvar, horizon, nscen))  # reshaped if needed
-
-# Generate Fourier terms for forecast horizon
-future_fourier <- fourier(ts_load_transformed, K = K, h = horizon)
-
-# Array for storing load scenarios
 load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
 
-# Generating load scenarios using future Fourier + predictor simulations
+# Step 8: Forecast loop
 for (s in 1:nscen) {
-  # Extract simulated predictor values for this scenario
-  predictors_sim <- t(Y[ , , s])  # [12 x 7]
+  # Ensure simulated predictors have correct orientation
+  predictors_sim <- t(Y[ , , s])  # [horizon x nvar]
   
   # Combine Fourier + predictors
   xreg_future <- cbind(future_fourier, predictors_sim)
   
-  #Make sure column names match training set
+  # Match column names
   colnames(xreg_future) <- colnames(xreg_full)
   
-  # Forecast load using model
+  # Forecast using fitted model
   forecast_result <- forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
   
-  # Manually compute forecast std dev
-  load_sd <- (forecast_result$upper[ , 1] - forecast_result$lower[ , 1]) / 
+  # Estimate SD from forecast intervals
+  load_sd <- (forecast_result$upper[, 1] - forecast_result$lower[, 1]) / 
              (2 * qnorm(0.5 + forecast_result$level[1] / 200))
   
-  # Generate stochastic scenario
-  load_scenarios[ , s] <- rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+  # Generate scenario (raw scale — can go negative unless handled)
+  load_scenarios[ , s] <- pmax(
+    rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+  )
 }
 
-# Back-transform from log to actual load
-load_scenarios_exp <- exp(load_scenarios)
 ```
 
 Generate ARIMA + Fourier model for load, and now we're generating scenarios.
@@ -397,26 +417,27 @@ Generate ARIMA + Fourier model for load, and now we're generating scenarios.
 I want to calculate all possible scenarios and optimize over those!
 
 ```{r}
+
 # Set y-axis range
-ymin <- min(load_scenarios_exp)
-ymax <- max(load_scenarios_exp)
+ymin <- min(load_scenarios, na.rm = TRUE)
+ymax <- max(load_scenarios, na.rm = TRUE)
 
-# Plot the first scenario
-plot(load_scenarios_exp[ , 1], type = "l", col = "gray", ylim = c(ymin, ymax),
-     xlab = "Month", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+# Start plot
+plot(load_scenarios[, 1], type = "l", col = "gray", ylim = c(ymin, ymax),
+     xlab = "Day", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
 
-# Add rest of the scenarios
+# Add all other scenarios
 for (s in 2:nscen) {
-  lines(load_scenarios_exp[ , s], col = "gray")
+  lines(load_scenarios[, s], col = "gray")
 }
 
-# Add the point forecast (mean of each month across all scenarios)
+# Add forecast mean
 lines(rowMeans(load_scenarios_exp), col = "blue", lwd = 2)
 
-# Add test data as a red line on top
-lines(ts_load_test, col = "red", lwd = 2, lty = 2)
+# Add actual test data (safely coerced to numeric if it's a time series)
+lines(as.numeric(ts_load_test), col = "red", lwd = 2, lty = 2)
 
-# Update legend to include test data
+# Add legend
 legend("topright",
        legend = c("Forecast Mean", "Scenarios", "Actual Load (Test)"),
        col = c("blue", "gray", "red"),
