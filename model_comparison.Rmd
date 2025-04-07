@@ -1,0 +1,124 @@
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+```
+
+#Neural Network
+
+```{r}
+#Neural Network 24
+NN_scores24 <- accuracy(NN_forec_24$mean,ts_load_test)
+
+#Neural Network 26
+NN_scores26 <- accuracy(NN_forec_26$mean,ts_load_test)
+
+#Neural Network 36
+NN_scores36 <- accuracy(NN_forec_36$mean,ts_load_test)
+```
+
+#SARIMA
+
+```{r}
+SARIMA_scores <- accuracy(SARIMA_forec$mean, ts_load_test)
+```
+
+#SSES
+
+```{r}
+SSES_scores <- accuracy(SSES_forec$mean, ts_load_test)
+```
+
+#SSBM
+
+```{r}
+SSBM_scores <- accuracy(SS_forec$mean, ts_load_test)
+```
+
+#STL+ETS
+
+```{r}
+STL_ETS_scores <- accuracy(ETS_fit$mean, ts_load_test)
+```
+
+#TBATS
+
+```{r}
+TBATS_scores <- accuracy(TBATS$mean, ts_load_test)
+```
+
+#ARIMA+Fourier (without exogenous variables)
+```{r}
+#ARIMA Fourier 23
+ARIMAFou_scores23 <- accuracy(ARIMA_Fourier_forec23$mean,ts_load_test)
+
+#ARIMA Fourier 24
+ARIMAFou_scores24 <- accuracy(ARIMA_Fourier_forec24$mean,ts_load_test)
+
+#ARIMA Fourier 26
+ARIMAFou_scores26 <- accuracy(ARIMA_Fourier_forec26$mean,ts_load_test)
+
+#ARIMA Fourier 36
+ARIMAFou_scores36 <- accuracy(ARIMA_Fourier_forec36$mean,ts_load_test)
+```
+
+
+#Final Table with 6 models created
+```{r}
+# Create data frame
+ALLscores <- as.data.frame(
+  rbind(NN_scores24, NN_scores26, NN_scores36, SARIMA_scores, SSES_scores, SSBM_scores, STL_ETS_scores, TBATS_scores, ARIMAFou_scores23, ARIMAFou_scores24, ARIMAFou_scores26, ARIMAFou_scores36)
+  )
+row.names(ALLscores) <- c("NN24","NN26", "NN36", "SARIMA", "SSES", "SSBM", "STL_ETS", "TBATS", "AF23","AF24", "AF26", "AF36")
+
+# Construct tables
+kbl(ALLscores, 
+      caption = "Forecast Accuracy for Daily Load",
+      digits = array(5,ncol(ALLscores))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
+
+write.csv(ALLscores, "ALLscores.csv", row.names = TRUE)
+```
+
+#Scenario Generation
+
+```{r}
+score1 <- accuracy(load_scenarios_exp[,1], ts_load_test)
+score2 <- accuracy(load_scenarios_exp[,2], ts_load_test)
+score3 <- accuracy(load_scenarios_exp[,3], ts_load_test)
+score4 <- accuracy(load_scenarios_exp[,4], ts_load_test)
+score5 <- accuracy(load_scenarios_exp[,5], ts_load_test)
+score6 <- accuracy(load_scenarios_exp[,6], ts_load_test)
+score7 <- accuracy(load_scenarios_exp[,7], ts_load_test)
+score8 <- accuracy(load_scenarios_exp[,8], ts_load_test)
+score9 <- accuracy(load_scenarios_exp[,9], ts_load_test)
+score10 <- accuracy(load_scenarios_exp[,10], ts_load_test)
+
+scenario_scores <- as.data.frame(
+  rbind(score1["Test set", ],
+        score2["Test set", ],
+        score3["Test set", ],
+        score4["Test set", ],
+        score5["Test set", ],
+        score6["Test set", ],
+        score7["Test set", ],
+        score8["Test set", ],
+        score9["Test set", ],
+        score10["Test set", ])
+)
+
+kbl(scenario_scores,
+    caption = "Forecast Accuracy for Each Load Scenario (ARIMA + Fourier)",
+    digits = array(5, ncol(scenario_scores))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  kable_styling(latex_options = "striped", stripe_index = which.min(ALLscores[,"MAPE"]))
+
+write.csv(scenario_scores, "scenario_generation_scores.csv", row.names = TRUE)
+```
+
