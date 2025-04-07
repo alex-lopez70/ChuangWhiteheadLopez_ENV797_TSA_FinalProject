@@ -1,5 +1,5 @@
 
-```{r}
+```{r Plot TS Fuels}
 ts_data <- data.frame(
   time = time(ts_load),
   load = ts_load,
@@ -25,6 +25,18 @@ autoplot(ts_natural_gas, series = "Natural Gas", size = 0.5, alpha = 0.6) +
   theme_minimal() +
   guides(colour = guide_legend(title = "Time Series"))
 ```
+# TS Load
+
+```{r TS ERCOT Load Plot}
+autoplot(ts_load, series = "ERCOT Load") +
+  ggtitle("ERCOT Load") +
+  xlab("Time") +
+  ylab("Load (MW)") +
+  theme_minimal() +
+  guides(colour = guide_legend(title = "Series"))
+```
+
+# Temp TS
 
 ```{r Temp TS}
 autoplot(ts_temp) +
