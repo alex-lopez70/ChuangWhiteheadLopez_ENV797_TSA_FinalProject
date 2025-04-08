@@ -90,7 +90,7 @@ qqnorm(values_transformed, main = "Q-Q Plot of ts_load_train_transformed"); qqli
 ```
 
 ```{r}
-horizon=365  #forecasting the next 365 days
+horizon=366  #forecasting the next 365 days
 nscen=10    #number of scenarios to be generated 
 
 # Create Fourier terms
@@ -114,3 +114,51 @@ checkresiduals(fit_arima_fourier)
 
 ```
 The ARIMA+Fourier doesn't seem to be accurately capturing what's going on in the data because the residuals are showing autocorrelation.
+
+```{r}
+horizon <- 366
+nscen <- 10
+nvar <- 7  
+
+set.seed(123)
+
+# Generate future exogenous scenarios
+future_exog_scenarios <- vector("list", nscen)
+for (i in 1:nscen) {
+  X_future_norm <- matrix(rnorm(nvar * horizon), nvar, horizon)
+  X_future_correlated <- t(L %*% X_future_norm)
+  future_exog_scenarios[[i]] <- X_future_correlated
+}
+
+# Generate future Fourier terms explicitly
+future_fourier <- fourier(ts_load_train_transformed, K = c(3,10), h = horizon)
+
+# Forecast explicitly using aligned regressors
+forecast_scenarios <- matrix(NA, nrow = horizon, ncol = nscen)
+
+for (i in 1:nscen) {
+  xreg_future_scenario <- cbind(future_fourier, future_exog_scenarios[[i]])
+  colnames(xreg_future_scenario) <- colnames(xreg_full) # explicitly align
+
+  scenario_forecast <- forecast(fit_arima_fourier, xreg = xreg_future_scenario, h = horizon)
+  forecast_scenarios[, i] <- exp(scenario_forecast$mean)
+}
+
+forecast_dates <- seq.Date(from = max(merged_df_train$Date) + 1, 
+                           by = "day", length.out = horizon)
+
+scenario_df <- data.frame(Date = forecast_dates, forecast_scenarios)
+colnames(scenario_df) <- c("Date", paste0("Scenario_", 1:nscen))
+
+scenario_long <- scenario_df %>%
+  pivot_longer(-Date, names_to = "Scenario", values_to = "Forecasted_Load")
+
+ggplot(scenario_long, aes(x = Date, y = Forecasted_Load, color = Scenario)) +
+  geom_line(alpha = 0.7) +
+  labs(title = "ARIMA + Fourier Load Forecast (Next 366 days only)",
+       x = "Date",
+       y = "Forecasted Load") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
