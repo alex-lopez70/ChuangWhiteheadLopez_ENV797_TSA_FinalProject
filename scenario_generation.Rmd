@@ -422,26 +422,35 @@ I want to calculate all possible scenarios and optimize over those!
 ymin <- min(load_scenarios, na.rm = TRUE)
 ymax <- max(load_scenarios, na.rm = TRUE)
 
-# Start plot
-plot(load_scenarios[, 1], type = "l", col = "gray", ylim = c(ymin, ymax),
-     xlab = "Day", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+with(list(), {
+  matplot(load_scenarios, type = "l", lty = 1, col = "gray", ylim = c(ymin, ymax),
+          xlab = "Day", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+  lines(rowMeans(load_scenarios), col = "blue", lwd = 2)
+  lines(as.numeric(ts_load_test), col = "red", lwd = 2, lty = 2)
+  legend("topright",
+         legend = c("Forecast Mean", "Scenarios", "Actual Load (Test)"),
+         col = c("blue", "gray", "red"),
+         lty = c(1, 1, 2),
+         lwd = c(2, 1, 2))
+})
 
-# Add all other scenarios
-for (s in 2:nscen) {
-  lines(load_scenarios[, s], col = "gray")
-}
-
-# Add forecast mean
-lines(rowMeans(load_scenarios_exp), col = "blue", lwd = 2)
-
-# Add actual test data (safely coerced to numeric if it's a time series)
-lines(as.numeric(ts_load_test), col = "red", lwd = 2, lty = 2)
-
-# Add legend
-legend("topright",
-       legend = c("Forecast Mean", "Scenarios", "Actual Load (Test)"),
-       col = c("blue", "gray", "red"),
-       lty = c(1, 1, 2),
-       lwd = c(2, 1, 2))
 ```
 This is a representation of the 365 days we are generating. 
+
+```{r}
+# Set y-axis range
+ymin <- min(load_scenarios, na.rm = TRUE)
+ymax <- max(load_scenarios, na.rm = TRUE)
+
+with(list(), {
+  matplot(load_scenarios, type = "l", lty = 1, col = "gray", ylim = c(ymin, ymax),
+          xlab = "Day", ylab = "Load (MW)", main = "ERCOT Load Scenarios (ARIMA + Fourier)")
+  lines(rowMeans(load_scenarios), col = "blue", lwd = 2)
+  legend("topright",
+         legend = c("Forecast Mean", "Scenarios"),
+         col = c("blue", "gray"),
+         lty = c(1, 1),
+         lwd = c(2, 1))
+})
+```
+
