@@ -223,4 +223,8 @@ legend("topright",
        col = c("blue", "gray"),
        lty = c(1, 1), lwd = c(2, 1))
 ```
+```{r}
+summary(load_scenarios)
+summary(ts_load)
+```
 
