@@ -25,19 +25,19 @@ NN_scores36 <- accuracy(NN_forec_36$mean,ts_load_test)
 #SARIMA
 
 ```{r}
-SARIMA_scores <- accuracy(SARIMA_forec$mean, ts_load_test)
+SARIMA_scores <- accuracy(SARIMA_forec$mean, ts_load_monthly_test)
 ```
 
 #SSES
 
 ```{r}
-SSES_scores <- accuracy(SSES_forec$mean, ts_load_test)
+SSES_scores <- accuracy(SSES_forec$mean, ts_load_monthly_test )
 ```
 
 #SSBM
 
 ```{r}
-SSBM_scores <- accuracy(SS_forec$mean, ts_load_test)
+SSBM_scores <- accuracy(SS_forec$mean, ts_load_monthly_test )
 ```
 
 #STL+ETS
@@ -49,7 +49,7 @@ STL_ETS_scores <- accuracy(ETS_fit$mean, ts_load_test)
 #TBATS
 
 ```{r}
-TBATS_scores <- accuracy(TBATS$mean, ts_load_test)
+TBATS_scores <- accuracy(TBATS_for$mean, ts_load_test)
 ```
 
 #ARIMA+Fourier (without exogenous variables)
@@ -74,7 +74,7 @@ ARIMAFou_scores36 <- accuracy(ARIMA_Fourier_forec36$mean,ts_load_test)
 ALLscores <- as.data.frame(
   rbind(NN_scores24, NN_scores26, NN_scores36, SARIMA_scores, SSES_scores, SSBM_scores, STL_ETS_scores, TBATS_scores, ARIMAFou_scores23, ARIMAFou_scores24, ARIMAFou_scores26, ARIMAFou_scores36)
   )
-row.names(ALLscores) <- c("NN24","NN26", "NN36", "SARIMA", "SSES", "SSBM", "STL_ETS", "TBATS", "AF23","AF24", "AF26", "AF36")
+row.names(ALLscores) <- c("NN24","NN26", "NN36", "SARIMA", "SSES", "SSBM", "STL+ETS", "TBATS", "AF23","AF24", "AF26", "AF36")
 
 # Construct tables
 kbl(ALLscores, 
@@ -86,39 +86,45 @@ kbl(ALLscores,
 write.csv(ALLscores, "ALLscores.csv", row.names = TRUE)
 ```
 
-#Scenario Generation
 
 ```{r}
-score1 <- accuracy(load_scenarios_exp[,1], ts_load_test)
-score2 <- accuracy(load_scenarios_exp[,2], ts_load_test)
-score3 <- accuracy(load_scenarios_exp[,3], ts_load_test)
-score4 <- accuracy(load_scenarios_exp[,4], ts_load_test)
-score5 <- accuracy(load_scenarios_exp[,5], ts_load_test)
-score6 <- accuracy(load_scenarios_exp[,6], ts_load_test)
-score7 <- accuracy(load_scenarios_exp[,7], ts_load_test)
-score8 <- accuracy(load_scenarios_exp[,8], ts_load_test)
-score9 <- accuracy(load_scenarios_exp[,9], ts_load_test)
-score10 <- accuracy(load_scenarios_exp[,10], ts_load_test)
+# Create data frame
+ALLscores <- as.data.frame(
+  rbind(NN_scores24, NN_scores26, NN_scores36, STL_ETS_scores, TBATS_scores)
+  )
+row.names(ALLscores) <- c("NN24","NN26", "NN36", "STL+ETS", "TBATS")
 
-scenario_scores <- as.data.frame(
-  rbind(score1["Test set", ],
-        score2["Test set", ],
-        score3["Test set", ],
-        score4["Test set", ],
-        score5["Test set", ],
-        score6["Test set", ],
-        score7["Test set", ],
-        score8["Test set", ],
-        score9["Test set", ],
-        score10["Test set", ])
-)
-
-kbl(scenario_scores,
-    caption = "Forecast Accuracy for Each Load Scenario (ARIMA + Fourier)",
-    digits = array(5, ncol(scenario_scores))) %>%
+# Construct tables
+kbl(ALLscores, 
+      caption = "Forecast Accuracy for Daily Load",
+      digits = array(5,ncol(ALLscores))) %>%
   kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
-  kable_styling(latex_options = "striped", stripe_index = which.min(ALLscores[,"MAPE"]))
+  kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
 
-write.csv(scenario_scores, "scenario_generation_scores.csv", row.names = TRUE)
+write.csv(ALLscores, "ALLscores.csv", row.names = TRUE)
+```
+
+```{r}
+autoplot(ts_load_test) +
+  autolayer(ts_load_test, series = "Actual Load", color = "black", PI = FALSE) +
+  autolayer(ARIMA_Fourier_forec23, series="Arima Fourier 23", PI=FALSE) +
+  autolayer(ARIMA_Fourier_forec24, series="Arima Fourier 24", PI=FALSE) +
+  autolayer(ARIMA_Fourier_forec26, series="Arima Fourier 26", PI=FALSE) +
+  autolayer(NN_forec_24, series="Neural Network 24", PI=FALSE) +
+  autolayer(NN_forec_26, series="Neural Network 26", PI=FALSE) +
+  autolayer(NN_forec_36, series="Neural Network 36", PI=FALSE) +
+  autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
+  autolayer(TBATS_for, series="TBATS", PI=FALSE) +
+  ylab("Load (MW)") +
+  ggtitle("Model Comparison - Daily Forecasts")
+
+autoplot(ts_load_monthly_test, series = "Actual Load", color = "black") +
+  autolayer(SARIMA_forec, series = "SARIMA", PI=FALSE) +
+  autolayer(SSES_forec, series = "SSES", PI=FALSE)  +
+  autolayer(SS_forec, series = "SS BSM", PI=FALSE) +
+  ylab("Monthly Load (MW)") +
+  ggtitle("Model Comparison - Monthly Forecasts")
+
+
 ```
 

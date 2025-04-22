@@ -1,0 +1,164 @@
+---
+title: "scenario_generation_v2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+```
+
+```{r}
+nvar=7
+nscen=1000
+
+#Generate 1000 normal random variates for each variable 
+X=array(0,c(nvar,nscen))
+for(i in 1:nvar){
+  X[i,]=rnorm(nscen,mean=0,sd=1)   
+}
+```
+
+```{r}
+#Calculating correlation matrix R
+#finding correlation among three values (values should be close to 0)
+Xcor=cor(t(X))  
+
+print(Xcor)
+```
+
+```{r}
+#Getting correlation matrix from historical data.
+
+#Need to create one dataframe with all the columns of the predictor variables of interest
+
+# keeping time stamp and Average temp from ERCOT_temp
+
+# Keeping time stamp and fuel mix columns
+fuel_mix_sub <- ERCOT_fuelmix[ , c("Date", "coal_and_lignite", "hydro", "nuclear", "solar", "wind", "natural_gas")]
+
+merged_df <- merge(ERCOT_temp_daily, fuel_mix_sub, by = "Date", all = TRUE)
+merged_df_train <- merged_df[1:(nrow(merged_df) - 365), ]
+
+#Finding correlation matrix, excluding date column
+R <- cor(merged_df_train[ , -1], use = "complete.obs")
+
+print(R)
+```
+
+```{r}
+# Get Cholesky decomposition, chol() will give upper triangular matrix
+U=chol(R)
+print(U)
+
+# Transpose U to get lower triangular matrix just 
+L=t(U) 
+print(L)
+```
+
+```{r}
+#Passing the correlation matrix R to the scenarios in matrix X
+
+Y=L%*%X   # the symbol %*% is for matrix multiplication 
+
+# Checking if the correlation of generated scenarios matches matrix R
+Ycor=cor(t(Y))  
+print(Ycor)
+```
+
+```{r}
+#Checking to see if the data is normally distributed
+values <- as.numeric(ts_load_train)
+qqnorm(values, main = "Q-Q Plot of ts_load_train"); qqline(values, col = "red")
+
+#transforming the msts object into a normal distribution
+ts_load_train_transformed <- log(ts_load_train)
+values_transformed <- as.numeric(ts_load_train_transformed )
+qqnorm(values_transformed, main = "Q-Q Plot of ts_load_train_transformed"); qqline(values_transformed, col = "red")
+```
+
+```{r}
+horizon=366  #forecasting the next 365 days
+nscen=10    #number of scenarios to be generated 
+
+# Create Fourier terms
+xreg_hist <- merged_df_train[ , -1]  # Remove Date column
+
+#Generate Fourier terms (K must match seasonal.periods length)
+K <- c(3,10)
+fourier_terms <- fourier(ts_load_train_transformed, K = K)
+
+# Combine Fourier + exogenous regressors
+xreg_hist <- merged_df_train[ , -1]  # Drop Date column
+xreg_full <- cbind(fourier_terms, xreg_hist)
+
+# Fit ARIMA on raw load with Fourier + xregs
+fit_arima_fourier <- auto.arima(ts_load_train_transformed, 
+                                 seasonal = FALSE, 
+                                 xreg = as.matrix(xreg_full))
+
+#checking the fit of the model
+checkresiduals(fit_arima_fourier)
+
+```
+The ARIMA+Fourier doesn't seem to be accurately capturing what's going on in the data because the residuals are showing autocorrelation.
+
+```{r}
+horizon <- 366
+nscen <- 10
+nvar <- 7  
+
+set.seed(123)
+
+# Generate future exogenous scenarios
+future_exog_scenarios <- vector("list", nscen)
+for (i in 1:nscen) {
+  X_future_norm <- matrix(rnorm(nvar * horizon), nvar, horizon)
+  X_future_correlated <- t(L %*% X_future_norm)
+  future_exog_scenarios[[i]] <- X_future_correlated
+}
+
+# Generate future Fourier terms explicitly
+future_fourier <- fourier(ts_load_train_transformed, K = c(3,10), h = horizon)
+
+# Forecast explicitly using aligned regressors
+forecast_scenarios <- matrix(NA, nrow = horizon, ncol = nscen)
+
+for (i in 1:nscen) {
+  xreg_future_scenario <- cbind(future_fourier, future_exog_scenarios[[i]])
+  colnames(xreg_future_scenario) <- colnames(xreg_full) # explicitly align
+
+  scenario_forecast <- forecast(fit_arima_fourier, xreg = xreg_future_scenario, h = horizon)
+  forecast_scenarios[, i] <- exp(scenario_forecast$mean)
+}
+
+forecast_dates <- seq.Date(from = max(merged_df_train$Date) + 1, 
+                           by = "day", length.out = horizon)
+
+scenario_df <- data.frame(Date = forecast_dates, forecast_scenarios)
+colnames(scenario_df) <- c("Date", paste0("Scenario_", 1:nscen))
+
+scenario_long <- scenario_df %>%
+  pivot_longer(-Date, names_to = "Scenario", values_to = "Forecasted_Load")
+
+ggplot(scenario_long, aes(x = Date, y = Forecasted_Load, color = Scenario)) +
+  geom_line(alpha = 0.7) +
+  labs(title = "ARIMA + Fourier Load Forecast (Next 366 days only)",
+       x = "Date",
+       y = "Forecasted Load") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
