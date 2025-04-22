@@ -24,12 +24,12 @@ NN_forec_24 <- forecast(NN_fit_24, h=365, xreg=fourier(ts_load_train,
 
 #Plot forecasting results
 autoplot(NN_forec_24) +
-  ylab("Load") 
+  ylab("Load (MW)") 
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(NN_forec_24, series="Neural Network", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -46,12 +46,12 @@ NN_forec_26 <- forecast(NN_fit_26, h=365, xreg=fourier(ts_load_train,
 
 #Plot forecasting results
 autoplot(NN_forec_26) +
-  ylab("Load") 
+  ylab("Load (MW)") 
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(NN_forec_26, series="Neural Network", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -68,12 +68,12 @@ NN_forec_36 <- forecast(NN_fit_36, h=365, xreg=fourier(ts_load_train,
 
 #Plot forecasting results
 autoplot(NN_forec_36) +
-  ylab("Load") 
+  ylab("Load (MW)") 
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(NN_forec_36, series="Neural Network", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -100,4 +100,14 @@ kbl(NNscores,
       digits = array(5,ncol(NNscores))) %>%
   kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
   kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
+```
+
+#All Neural Network models in a single plot
+```{r}
+autoplot(ts_load) +
+  autolayer(NN_forec_24, series="K = c(2,4)", PI=FALSE) +
+  autolayer(NN_forec_26, series="K = c(2,6)", PI=FALSE) +
+  autolayer(NN_forec_36, series="K = c(3,6)", PI=FALSE) +
+  ylab("Load (MW)")
+
 ```

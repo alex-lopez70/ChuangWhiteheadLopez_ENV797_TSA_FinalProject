@@ -28,12 +28,12 @@ ARIMA_Fourier_forec23 <- forecast(ARIMA_Fourier_fit23,
                            ) 
 
 #Plot forecasting results
-autoplot(ARIMA_Fourier_forec23) + ylab("Load")
+autoplot(ARIMA_Fourier_forec23) + ylab("Load (MW)")
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec23, series="ARIMA_FOURIER", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -54,12 +54,12 @@ ARIMA_Fourier_forec24 <- forecast(ARIMA_Fourier_fit24,
                            ) 
 
 #Plot forecasting results
-autoplot(ARIMA_Fourier_forec24) + ylab("Load")
+autoplot(ARIMA_Fourier_forec24) + ylab("Load (MW)")
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec24, series="ARIMA_FOURIER", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -80,12 +80,12 @@ ARIMA_Fourier_forec26 <- forecast(ARIMA_Fourier_fit26,
                            ) 
 
 #Plot forecasting results
-autoplot(ARIMA_Fourier_forec26) + ylab("Load")
+autoplot(ARIMA_Fourier_forec26) + ylab("Load (MW)")
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec26, series="ARIMA_FOURIER", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -106,12 +106,12 @@ ARIMA_Fourier_forec36 <- forecast(ARIMA_Fourier_fit36,
                            ) 
 
 #Plot forecasting results
-autoplot(ARIMA_Fourier_forec36) + ylab("Load")
+autoplot(ARIMA_Fourier_forec36) + ylab("Load (MW)")
 
 #Plot model + observed data
 autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec36, series="ARIMA_FOURIER", PI=FALSE) +
-  ylab("Load")
+  ylab("Load (MW)")
 
 ```
 
@@ -141,4 +141,15 @@ kbl(ARIMAFou_scores,
       digits = array(5,ncol(ARIMAFou_scores))) %>%
   kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
   kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
+```
+
+#All ARIMA + Fourier models in a single plot
+```{r}
+autoplot(ts_load) +
+  autolayer(ARIMA_Fourier_forec23, series="K = c(2,3)", PI=FALSE) +
+  autolayer(ARIMA_Fourier_forec24, series="K = c(2,4)", PI=FALSE) +
+  autolayer(ARIMA_Fourier_forec26, series="K = c(2,6)", PI=FALSE) +
+  autolayer(ARIMA_Fourier_forec36, series="K = c(3,6)", PI=FALSE)
+  ylab("Load (MW)")
+
 ```
