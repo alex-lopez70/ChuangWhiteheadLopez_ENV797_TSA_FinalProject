@@ -67,6 +67,25 @@ ARIMAFou_scores26 <- accuracy(ARIMA_Fourier_forec26$mean,ts_load_test)
 ARIMAFou_scores36 <- accuracy(ARIMA_Fourier_forec36$mean,ts_load_test)
 ```
 
+```{r}
+# Combine all scores into one data frame
+ALLscores <- as.data.frame(
+  rbind(NN_scores24, NN_scores26, NN_scores36, 
+        SARIMA_scores, SSES_scores, SSBM_scores, 
+        STL_ETS_scores, TBATS_scores, 
+        ARIMAFou_scores23, ARIMAFou_scores24, ARIMAFou_scores26, ARIMAFou_scores36)
+)
+
+# Set row names to identify models
+row.names(ALLscores) <- c("NN24", "NN26", "NN36", 
+                          "SARIMA", "SSES", "SSBM", 
+                          "STL+ETS", "TBATS", 
+                          "AF23", "AF24", "AF26", "AF36")
+
+# Save to CSV
+write.csv(ALLscores, "ALLscores.csv", row.names = TRUE)
+```
+
 
 #Final Table with 6 models created
 ```{r}
@@ -82,8 +101,6 @@ kbl(ALLscores,
       digits = array(5,ncol(ALLscores))) %>%
   kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
   kable_styling(latex_options="striped", stripe_index = which.min(scores[,"MAPE"]))
-
-write.csv(ALLscores, "ALLscores.csv", row.names = TRUE)
 ```
 
 
