@@ -1,5 +1,5 @@
 ---
-title: "Scenario generation"
+title: "Scenario generation - Final Version"
 output: pdf_document
 always_allow_html: true
 editor_options: 
@@ -92,7 +92,7 @@ print(Ycor) #compare Ycor with R and you will see it worked.
 
 ```{r}
 #transforming into normal distribution as we create the ts object
-ts_load <- ts(ERCOT_load$load, frequency = 365, start = c(2017,1))
+ts_load <- ts(log(ERCOT_load$load), frequency = 365, start = c(2017, 1))
 autoplot(ts_load)
 ```
 
@@ -171,8 +171,17 @@ xreg_full <- cbind(fourier_terms, xreg_train)
 
 # Fit ARIMA + Fourier + exog model
 fit_arima_fourier <- auto.arima(ts_load_train,
+                                max.p = 5, max.q = 5,      
+                                max.d = 0,                 
+                                max.order = 0,  
                                 seasonal = FALSE,
-                                xreg = as.matrix(xreg_full))
+                                xreg = as.matrix(xreg_full),
+                                stepwise = FALSE, approximation = FALSE)
+
+#auto.arima did not work with the log transformed data
+#fit_arima_fourier <- auto.arima(ts_load_train,
+#                                seasonal = FALSE,
+#                                xreg = as.matrix(xreg_full))
 ```
 
 Using trained model and scenario data to generate nscen load forecasts:
@@ -200,9 +209,8 @@ for (s in 1:nscen) {
   load_sd <- (forecast_result$upper[, 1] - forecast_result$lower[, 1]) /
              (2 * qnorm(0.5 + forecast_result$level[1] / 200))
   
-  load_scenarios[ , s] <- pmax(
-    rnorm(horizon, mean = forecast_result$mean, sd = load_sd), 0
-  )
+  log_forecast <- rnorm(horizon, mean = forecast_result$mean, sd = load_sd)
+  load_scenarios[ , s] <- exp(log_forecast + 0.5 * load_sd^2)
 }
 
 ```
@@ -225,6 +233,6 @@ legend("topright",
 ```
 ```{r}
 summary(load_scenarios)
-summary(ts_load)
+summary(exp(ts_load))
 ```
 
