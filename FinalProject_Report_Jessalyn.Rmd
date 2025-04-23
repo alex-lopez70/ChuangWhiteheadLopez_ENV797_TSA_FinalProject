@@ -125,7 +125,7 @@ kbl(dataset_description, caption = "Data Set Description",
 ```
 
 ## Data Wrangling
-The earliest available data for ERCOT fuel mix was from January 2017, so we decided to retrieve load, temperature, and fuel mix data from January 2017 onwards. After importing each of these three data sets (daily values except for temperature data) for the dates 1 January 2017 to 4 April 2025 and converting them to data frames, we created a new 'Date' column for each of the three date sets that converted the time given in the 'interval_start_local' to a YYYY-MM-DD format. Regarding the temperature data, since it is hourly data divided by zone, we first found the hourly average for each zone, then the daily average for each zone, and finally we found the daily average using all the zones in ERCOT by using rowMeans(), group_by(), and summarise().
+The earliest available data for ERCOT fuel mix was from January 2017, so we decided to retrieve load, temperature, and fuel mix data from January 2017 onwards. After importing each of these three data sets (daily values except for temperature data) for the dates 1 January 2017 to 4 April 2025 and converting them to data frames, we created a new 'Date' column for each of the three date sets that converted the time given in the 'interval_start_local' to a YYYY-MM-DD format. Regarding the temperature data, since it is hourly data divided by zone, we first found the hourly average for each zone, then the daily average for each zone, and finally we found the daily average using all the zones in ERCOT by using rowMeans(), group_by(), and summarise(). We split the data into training and testing subsets: testing data encompasses the last 365 days of data, while the rest was classified as the training data.
 
 Since we are working with higher frequency data with multiple seasonalities, we are using the `msts` class from package `forecast` to create time series objects for our daily data sets. Unlike the ts() function, reserved for data exhibiting single seasonality, the msts() function allows for non-integer frequency specification. We therefore created eight time series objects, one for load, one for temperature, and one for each of the fuels we are analyzing, namely coal and lignite, hydro, nuclear, solar, wind, and natural gas, with a 'seasonal.period = c(7, 365.25)' for each. Below are summaries of the data structures of each of the three wrangled data frames (for load, temperature, and fuel mix) that were then used to create time series objects by using msts():
 
@@ -175,7 +175,6 @@ kable(ERCOT_temp_summary, caption = "ERCOT Daily Temperature Summary")
 ```{r table3, echo=FALSE}
 kable(ERCOT_fuelmix_summary, caption = "ERCOT Fuel Mix Summary")
 ```
-
 # Data Exploration
 
 ## ERCOT Load
@@ -186,23 +185,66 @@ kable(ERCOT_fuelmix_summary, caption = "ERCOT Fuel Mix Summary")
 
 # Methodology and Models
 
+Modeling ERCOT load is inherently complex due to the presence of multiple seasonal patterns, non-linearities, and variability driven by weather, human behavior, and market conditions. To capture these dynamics, we used a varity of time series models, each offering unique strengths.
+
 ## STL+ETS
+
+STL+ETS decomposes the series into seasonal, trend, and remainder components using STL (Seasonal and Trend decomposition using Loess), followed by exponential smoothing (ETS) to forecast each part. This hybrid approach is particularly useful for capturing smooth and potentially evolving seasonal and trend structures in load data.
 
 ## TBATS
 
+TBATS (trigonometric seasoanlity, Box-Cox trasnformation, ARMA errors, Trend, and Seasonal components) is helpful for modeling ERCOT load due to its ability to handl emultiple and non-integer seasonalities, such as daily and weekly cycles, and complex seasonal interactions. Its flexibility and scalability make it valuable for long-term load forecasting.
+
 ## ARIMA + Fourier Terms
+
+This method integrats traditional autoregressive modeling with Fourier terms as exogenous regressors, effectively capturing recurring seasonal patterns like daily temperature-related demand fluctuations. This approach enhances ARIMA's forecasting performance for load data by explicitly modeling periodicities without the need for differencing seasonal components.
 
 ## Neural Network
 
+Neural networks use lagged values and Fourier terms. They are good at learning non-linear relationships, which are very much present in the ERCOT load data. By using historical patterns and multiple seasonality indicators, neural networks can adapt to complex load behaviors that linear models might miss.
+
 ## SARIMA
+
+The seasonal ARIMA autofits single-seasonality patterns and is suitable when ERCOT load dispays dominant seasonal trends, such as daily or weekly cycles. Although limited in handling multiple seasonalities simultaneously, SARIMA is a reliable choice for a baseline.
 
 ## SSES
 
+SSES (State Space Exponential Smoothing) offers a probabilistic approach to forecasting, modeling uncertainty while capturing both trend and seasonality. This model's automatic structure selection makes it useufl for adapting to changes in ERCOT load dynamics over time without manual re-sepcification.
+
 ## SSBSM
+
+SSBM (Structural Bayesina State Space Model) is also a probabilsitic framework, and it assumes that all components (trend, seasonality, irregular) are stochastic and can evolve over time. This is power for ERCOT load forecasting where structural shifts due to policy, climate, or demand-side management interventions can occur unexpectedly.
 
 ## Scenario Generation
 
+Lastly, we did scenario generation using Cholesky decomposition, which allowed us to create multiple realistic future ERCOT load forecasts by simulating correlated input variables. First, we calculate the historical covariance matrix of the load and the 7 predictors. Then, using Cholesky decomposition, we broke this matrix into a lower triangular matrix that captures the variables' dependencies. By multiplying random normal samples by this matrix, we generated new input scenarios that preserve historical correlations. These are then fed into an ARIMA + Fourier forecasting model to produce a range of potential load trajectories. Doing this helps to capture uncertainty in both the predictors and their influence on load.
+
 # Results
+
+##Model Comparison
+
+```{r echo=FALSE}
+ALLscores <- read_csv("ALLscores.csv")
+names(ALLscores)[1] <- "Model"
+kbl(ALLscores, 
+    caption = "Forecast Accuracy for Daily Load", 
+    digits = 5) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position", bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+```{r echo=FALSE}
+knitr::include_graphics("model_comparison_daily.png")
+```
+
+```{r echo=FALSE}
+knitr::include_graphics("model_comparison_monthly.png")
+```
+
+##Scenario Generation
+
+```{r echo=FALSE}
+knitr::include_graphics("ercot_load_scenarios.png")
+```
 
 # Conclusions
 
