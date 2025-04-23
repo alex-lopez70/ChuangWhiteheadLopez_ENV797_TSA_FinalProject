@@ -1,0 +1,229 @@
+---
+title: "Scenario generation"
+output: pdf_document
+always_allow_html: true
+editor_options: 
+  chunk_output_type: inline
+  markdown: 
+    wrap: sentence
+---
+
+
+## Setting R code chunk options
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+## Loading packages and initializing
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+```
+
+## Cholesky decomposition in R
+
+```{r}
+nvar=7
+nscen=1000
+
+#Generate 1000 normal random variates for each of the 7 predictor variables
+X=array(0,c(nvar,nscen))
+for(i in 1:nvar){
+  X[i,]=rnorm(nscen,mean=0,sd=1)   
+}
+
+Xcor=cor(t(X))  
+print(Xcor)
+```
+
+```{r}
+fuel_mix_sub <- ERCOT_fuelmix[ , c("Date", "coal_and_lignite", "hydro", "nuclear", "solar", "wind", "natural_gas")]
+
+merged_df <- merge(ERCOT_temp_daily, fuel_mix_sub, by = "Date", all = TRUE)
+
+#Finding correlation matrix, excluding date column
+R <- cor(merged_df[ , -1], use = "complete.obs")
+
+print(R)
+
+xreg_hist <- merged_df[, -1]  # assuming the first column is Date
+nvar <- ncol(xreg_hist)
+```
+
+```{r}
+# Get Cholesky decomposition, chol() will give upper triangular matrix
+U=chol(R)
+print(U)
+
+# Transpose U to get lower triangular matrix just 
+L=t(U) 
+print(L)
+
+Y=L%*%X 
+
+Ycor=cor(t(Y))  
+print(Ycor) 
+```
+
+This lower triangular matrix (3x3) will be multiplied by our scenarios matrix X (3x1000) and will lead to new 1000 scenarios.
+
+```{r}
+#Passing the correlation matrix R to the scenarios in matrix X
+
+Y=L%*%X   # the symbol %*% is for matrix multiplication 
+
+# Checking if the correlation of generated scenarios matches matrix R
+Ycor=cor(t(Y))  
+print(Ycor) #compare Ycor with R and you will see it worked.
+#you create correlation between variables by manipulating draws of other variables (note row one same between Y and X, different for bottom two rows)
+```
+
+## Generating scenarios with ARIMA model
+
+```{r}
+#transforming into normal distribution as we create the ts object
+ts_load <- ts(ERCOT_load$load, frequency = 365, start = c(2017,1))
+autoplot(ts_load)
+```
+
+
+```{r}
+#fit the seasonal ARIMA to the each basin
+horizon <- 365  #we want to forecasting 365 days ahead
+nscen <- 10    #number of scenarios to be generated 
+
+#number of variables by number of scenarios, third dimension is now the forecasting horizon
+X=array(0,c(nvar,horizon,nscen))
+
+#Simulating scenarios for each exogenous variable
+for (i in 1:nvar) {
+  
+  # Extract time series for the i-th variable
+  ts_exog_var <- ts(xreg_hist[, i], frequency = 365, start = c(2017, 1))
+  
+  # Fit ARIMA (or SARIMA) to that variable
+  fit_SARIMA <- auto.arima(ts_exog_var,
+                           max.d = 1, max.D = 1,
+                           max.p = 1, max.P = 1, max.Q = 1)
+  
+  # Forecast future values
+  for_SARIMA <- forecast(fit_SARIMA, h = horizon)
+  
+  # Loop over the forecast horizon to simulate scenarios
+  for (t in 1:horizon) {
+    # Calculate standard deviation of forecast using the 80% interval by default
+    sd <- (for_SARIMA$upper[t, 1] - for_SARIMA$lower[t, 1]) /
+          (2 * qnorm(0.5 + for_SARIMA$level[1] / 200))
+    
+    # Generate 'nscen' draws for this time step and variable
+    X[i, t, ] <- rnorm(nscen, mean = for_SARIMA$mean[t], sd = sd)
+  }
+  
+  # Clean up before next variable
+  rm(fit_SARIMA, for_SARIMA)
+}
+
+```
+
+```{r}
+U <- chol(R) 
+L <- t(U) 
+
+#Creating array Y where we will store correlated scenarios
+Y <- array(0,c(nvar,horizon,nscen)) 
+
+# Apply Cholesky to each scenario to inject correlation
+for(s in 1:nscen){ 
+  aux <- X[,,s] 
+  
+  Y[,,s] <- L%*%aux  
+
+}
+
+#Calculate correlation again
+correlated_sample <- Y[ , , 5]   # 5th scenario just to take a look
+estimated_corr <- cor(t(correlated_sample))  # Transpose so columns = variables
+print(estimated_corr)
+```
+```{r}
+# Split load data into training and test sets
+ts_load_train <- window(ts_load, end = c(2023, 365 - horizon))  # adjust end date as needed
+ts_load_test <- ts(tail(ts_load, horizon), frequency = 365, start = end(ts_load)[1] + (end(ts_load)[2] - horizon + 1) / 365)
+
+# Generate Fourier terms for training period
+fourier_terms <- fourier(ts_load_train, K = K)
+
+# Subset exogenous vars to same time span as ts_load_train
+xreg_train <- xreg_hist[1:length(ts_load_train), ]
+
+# Combine Fourier + exogenous vars for training
+xreg_full <- cbind(fourier_terms, xreg_train)
+
+# Fit ARIMA + Fourier + exog model
+fit_arima_fourier <- auto.arima(ts_load_train,
+                                seasonal = FALSE,
+                                xreg = as.matrix(xreg_full))
+```
+
+Using trained model and scenario data to generate nscen load forecasts:
+
+```{r}
+# Initialize matrix to hold load scenarios
+load_scenarios <- matrix(0, nrow = horizon, ncol = nscen)
+
+# Set the number of harmonics used (this should match what was used in training)
+K <- 2  # or K <- c(2, 8) if you're using multiple seasonalities (weekly + yearly)
+
+# Generate Fourier terms for the future
+future_fourier <- fourier(ts_load, K = K, h = horizon)
+
+# Loop over each scenario
+for (s in 1:nscen) {
+  
+  predictors_sim <- t(Y[ , , s])  # [horizon x nvar]
+  xreg_future <- cbind(future_fourier, predictors_sim)
+  
+  colnames(xreg_future) <- colnames(xreg_full)  # Match to training
+  
+  forecast_result <- forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
+  
+  load_sd <- (forecast_result$upper[, 1] - forecast_result$lower[, 1]) /
+             (2 * qnorm(0.5 + forecast_result$level[1] / 200))
+  
+  load_scenarios[ , s] <- pmax(
+    rnorm(horizon, mean = forecast_result$mean, sd = load_sd), 0
+  )
+}
+
+```
+
+```{r}
+
+ymin <- min(load_scenarios, ts_load_test, na.rm = TRUE)
+ymax <- max(load_scenarios, ts_load_test, na.rm = TRUE)
+
+matplot(load_scenarios, type = "l", lty = 1, col = "gray",
+        xlab = "Day", ylab = "Forecasted Load (MW)", 
+        main = "ERCOT Load Scenarios (ARIMA + Fourier + Exog)")
+
+lines(rowMeans(load_scenarios), col = "blue", lwd = 2)
+
+legend("topright",
+       legend = c("Forecast Mean", "Scenarios"),
+       col = c("blue", "gray"),
+       lty = c(1, 1), lwd = c(2, 1))
+```
+```{r}
+summary(load_scenarios)
+summary(ts_load)
+```

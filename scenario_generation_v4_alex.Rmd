@@ -1,0 +1,161 @@
+---
+title: "Scenario generation"
+output: pdf_document
+always_allow_html: true
+editor_options: 
+  chunk_output_type: inline
+  markdown: 
+    wrap: sentence
+---
+
+
+## Setting R code chunk options
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+library(future)
+library(future.apply)
+```
+
+```{r}
+# General parameters
+horizon <- 366  # Forecasting the next 365 days
+nscen <- 10     # Number of scenarios
+nvar <- 7       # Number of exogenous variables
+set.seed(123)
+
+```
+
+```{r}
+# Generate uncorrelated normal variables
+X <- array(rnorm(nvar * nscen), c(nvar, nscen))
+
+# Check baseline correlation (should be ~0)
+Xcor <- cor(t(X))
+print(Xcor)
+
+```
+
+```{r}
+# Subset and merge historical predictors
+fuel_mix_sub <- ERCOT_fuelmix[, c("Date", "coal_and_lignite", "hydro", "nuclear", "solar", "wind", "natural_gas")]
+merged_df <- merge(ERCOT_temp_daily, fuel_mix_sub, by = "Date", all = TRUE)
+merged_df_train <- merged_df[1:(nrow(merged_df) - 365), ]
+
+# Correlation matrix (excluding Date)
+R <- cor(merged_df_train[ , -1], use = "complete.obs")
+print(R)
+
+```
+
+```{r}
+# Cholesky decomposition of correlation matrix
+U <- chol(R)
+L <- t(U)
+
+```
+
+```{r}
+# Check normality
+values <- as.numeric(ts_load_train)
+qqnorm(values, main = "Q-Q Plot of ts_load_train"); qqline(values, col = "red")
+
+# Log-transform to normalize
+ts_load_train_transformed <- log(ts_load_train)
+values_transformed <- as.numeric(ts_load_train_transformed)
+qqnorm(values_transformed, main = "Q-Q Plot of Transformed Load"); qqline(values_transformed, col = "red")
+
+```
+
+```{r}
+# Build Fourier + exogenous regressors
+K <- c(3, 10)
+fourier_terms <- fourier(ts_load_train_transformed, K = K)
+xreg_hist <- merged_df_train[ , -1]  # Drop Date
+xreg_full <- cbind(fourier_terms, xreg_hist)
+
+# Fit ARIMA model
+fit_arima_fourier <- auto.arima(ts_load_train_transformed,
+                                 seasonal = FALSE,
+                                 xreg = as.matrix(xreg_full))
+
+checkresiduals(fit_arima_fourier)
+
+```
+
+```{r}
+plan(multisession)  # Use parallel workers
+
+# Create future Fourier terms
+future_fourier <- fourier(ts_load_train_transformed, K = c(3, 10), h = horizon)
+
+# Parallel scenario generation and forecasting
+forecast_matrix <- future_lapply(1:nscen, future.seed=TRUE, function(i) {
+  X_future <- matrix(rnorm(nvar * horizon), nvar, horizon)
+  X_correlated <- t(L %*% X_future)
+  xreg_future <- cbind(future_fourier, X_correlated)
+  colnames(xreg_future) <- colnames(xreg_full)
+
+  forecast_result <- forecast::forecast(fit_arima_fourier, xreg = xreg_future, h = horizon)
+  as.numeric(exp(forecast_result$mean))  # Reverse log transform
+})
+
+# Combine forecasts into a dataframe
+forecast_matrix <- do.call(cbind, forecast_matrix)
+forecast_dates <- seq.Date(from = max(merged_df_train$Date) + 1, by = "day", length.out = horizon)
+
+scenario_df <- data.frame(Date = forecast_dates, forecast_matrix)
+colnames(scenario_df) <- c("Date", paste0("Scenario_", 1:nscen))
+
+scenario_long <- scenario_df %>%
+  pivot_longer(-Date, names_to = "Scenario", values_to = "Forecasted_Load")
+
+ggplot(scenario_long, aes(x = Date, y = Forecasted_Load, color = Scenario)) +
+  geom_line(alpha = 0.7) +
+  labs(title = "ARIMA + Fourier Load Forecast (Next 366 Days)",
+       x = "Date", y = "Forecasted Load") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+
+```
+
+```{r}
+# Extract numeric part only (exclude Date column)
+scenarios_matrix <- as.matrix(scenario_df[ , -1])  # drop Date column
+
+# Determine y-axis limits
+ymin <- min(scenarios_matrix, ts_load_train_transformed, na.rm = TRUE)
+ymax <- max(scenarios_matrix, ts_load_train_transformed, na.rm = TRUE)
+
+# Plot all scenario lines in gray
+matplot(scenarios_matrix, type = "l", lty = 1, col = "gray",
+        xlab = "Day", ylab = "Forecasted Load (MW)", 
+        main = "ERCOT Load Scenarios (ARIMA + Fourier + Exog)",
+        ylim = c(ymin, ymax))
+
+# Add forecast mean in blue
+lines(rowMeans(scenarios_matrix), col = "blue", lwd = 2)
+
+# Add legend
+legend("topright",
+       legend = c("Forecast Mean", "Scenarios"),
+       col = c("blue", "gray"),
+       lty = c(1, 1), lwd = c(2, 1))
+
+
+
+```
