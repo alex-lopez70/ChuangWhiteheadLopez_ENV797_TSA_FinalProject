@@ -177,11 +177,21 @@ kable(ERCOT_fuelmix_summary, caption = "ERCOT Fuel Mix Summary")
 ```
 # Data Exploration
 
+To better understand the dynamics of electricity consumption and generation in the ERCOT region, we wanted to visualize our time series data (using the autoplot() function). These visuals gave us insights into long-term trends and seasonal patterns in ERCOT load, temperature, and the evolving fuel mix. By looking at these trends, we could spot times of high demand and see how temperature changes affect energy use. We also noticed shifts in the fuel mix, showing how the region is moving toward more sustainable energy sources.
+
+(need to add acf and pacf stuff still)
+
 ## ERCOT Load
+
+The ERCOT load has shown a steady increase from 2017 to 2025. This rise reflects growing residential and industrial electricity consumption, which could be attributed to population growth, economic development, and infrastructure expansion across Texas. Seasonal fluctuations are also apparent, with noticeable peaks during periods of extreme temperatures, particularly in the summer and winter months.
 
 ## ERCOT Temperature
 
+As mentioned before, the temperature data was averaged daily for each zone and then combined to get an overall ERCOT-wide daily average. This change helped us match the temperature data with load and fuel mix data. As expected, temperature patterns showed strong seasonality, with summer highs and winter lows corresponding to fluctuations in load. 
+
 ## ERCOT Fuel Mix
+
+ERCOT’s fuel mix shows significant shifts over time. Natural gas remains the most relevant and responsive energy source, with a load shape closely mirroring the overall ERCOT demand curve. Coal and lignite usage has declined steadily, and this aligns with national efforts to reduce reliance on fossil fuels, as renewables such as wind and solar have shown steady increase. ERCOT's nuclear generation and hydroelectric power have both remained stable, though we should note that hydroelectric has very minimal contribution.
 
 # Methodology and Models
 
@@ -193,11 +203,11 @@ STL+ETS decomposes the series into seasonal, trend, and remainder components usi
 
 ## TBATS
 
-TBATS (trigonometric seasoanlity, Box-Cox trasnformation, ARMA errors, Trend, and Seasonal components) is helpful for modeling ERCOT load due to its ability to handl emultiple and non-integer seasonalities, such as daily and weekly cycles, and complex seasonal interactions. Its flexibility and scalability make it valuable for long-term load forecasting.
+TBATS (trigonometric seasoanlity, Box-Cox trasnformation, ARMA errors, Trend, and Seasonal components) is helpful for modeling ERCOT load due to its ability to handle multiple and non-integer seasonalities, such as daily and weekly cycles, and complex seasonal interactions. Its flexibility and scalability make it valuable for long-term load forecasting.
 
 ## ARIMA + Fourier Terms
 
-This method integrats traditional autoregressive modeling with Fourier terms as exogenous regressors, effectively capturing recurring seasonal patterns like daily temperature-related demand fluctuations. This approach enhances ARIMA's forecasting performance for load data by explicitly modeling periodicities without the need for differencing seasonal components.
+This method integrates traditional autoregressive modeling with Fourier terms as exogenous regressors, effectively capturing recurring seasonal patterns like daily temperature-related demand fluctuations. This approach enhances ARIMA's forecasting performance for load data by explicitly modeling periodicities without the need for differencing seasonal components.
 
 ## Neural Network
 
@@ -205,15 +215,15 @@ Neural networks use lagged values and Fourier terms. They are good at learning n
 
 ## SARIMA
 
-The seasonal ARIMA autofits single-seasonality patterns and is suitable when ERCOT load dispays dominant seasonal trends, such as daily or weekly cycles. Although limited in handling multiple seasonalities simultaneously, SARIMA is a reliable choice for a baseline.
+The seasonal ARIMA autofits single-seasonality patterns and is suitable when ERCOT load displays dominant seasonal trends, such as daily or weekly cycles. Although limited in handling multiple seasonalities simultaneously, SARIMA is a reliable choice for a baseline.
 
 ## SSES
 
-SSES (State Space Exponential Smoothing) offers a probabilistic approach to forecasting, modeling uncertainty while capturing both trend and seasonality. This model's automatic structure selection makes it useufl for adapting to changes in ERCOT load dynamics over time without manual re-sepcification.
+SSES (State Space Exponential Smoothing) offers a probabilistic approach to forecasting, modeling uncertainty while capturing both trend and seasonality. This model's automatic structure selection makes it useful for adapting to changes in ERCOT load dynamics over time without manual re-specification.
 
 ## SSBSM
 
-SSBM (Structural Bayesina State Space Model) is also a probabilsitic framework, and it assumes that all components (trend, seasonality, irregular) are stochastic and can evolve over time. This is power for ERCOT load forecasting where structural shifts due to policy, climate, or demand-side management interventions can occur unexpectedly.
+SSBM (Structural Bayesian State Space Model) is also a probabilistic framework, and it assumes that all components (trend, seasonality, irregular) are stochastic and can evolve over time. This is power for ERCOT load forecasting where structural shifts due to policy, climate, or demand-side management interventions can occur unexpectedly.
 
 ## Scenario Generation
 
