@@ -502,6 +502,7 @@ Lastly, we did scenario generation using Cholesky decomposition, which allowed u
 ```{r echo=FALSE}
 knitr::include_graphics("ercot_load_scenarios.png")
 ```
+This ARIMA + Fourier + exogenous variables model with Cholesky-based scenario generation shows overall trends well, but it doesn’t seem to capture large spikes in load that we were expecting (i.e. more values in the 60-70 GW range). The scenarios mostly stay close to the mean of the original data set and don’t reflect the more extreme values we sometimes see in actual data. This might be because Cholesky decomposition uses a multivariate normal distribution, which keeps the correlations between variables but tends to produce values clustered around the average, without many extreme highs or lows.
 
 # Results and Model Comparisons
 
@@ -530,7 +531,11 @@ Compared to the forecasting models for daily load, from only looking at the plot
 
 # Conclusions
 
-According to the results of our models, we can conclude that
+According to the results of our models, we can conclude that daily forecasting improves with more flexible approaches like ARIMA with Fourier terms and non-linear models like Neural Networks, which can adapt to short-term variability and capture complex patterns in the data. Simpler and more stable models like SARIMA and SSES are more effective for monthly forecasting, as they generalize better over longer horizons with less overfitting.
+
+For scenario generation, Cholesky decomposition offers a straightforward way to create realistic-looking variations by preserving the correlation structure in the data. However, it tends to produce values clustered around the mean and struggles to represent rare, high-impact events like extreme load spikes. This could limit its usefulness in stress-testing or planning for outlier conditions, which are increasingly important in energy systems under more volatile conditions.
+
+Load forecasting is an important tool for power system planning and operation. Accurate forecasts help grid operators have a reliable balance between electricity supply and demand, avoid blackouts, and minimize operational costs. They also support market participants in making decisions about bidding and generation schedules. As the grid becomes more complex and dynamic with increasing renewable integration, extreme weather events, and changing consumption patterns, flexible forecasting methods become even more essential for maintaining grid reliability and efficiency.
 
 # References
 1. Guo, Kayla. Data centers are booming in Texas. What does that mean for the grid? Published 24 Jan. 2025. https://www.texastribune.org/2025/01/24/texas-data-center-boom-grid/.
