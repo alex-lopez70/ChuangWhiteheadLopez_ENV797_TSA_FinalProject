@@ -94,6 +94,10 @@ ts_load_train <- subset(ts_load,end = length(ts_load)-n_for) #stops 365 days bef
 ts_load_test <- subset(ts_load, start = length(ts_load)-n_for) #last 365 observations
 ```
 
+#GitHub Repository Link
+
+https://github.com/alex-lopez70/ChuangWhiteheadLopez_ENV797_TSA_FinalProject 
+
 # Introduction and Motivation
 
 Load growth used to be fairly stagnant and was managed by implementing more efficiency measures (Walton, 2023). However, with innovation in electrical technologies (EVs, heat pumps, etc.) and the introduction of new load sources (crypto mining and data centers), electrical load has skyrocketed in recent years. As a result, we need new and innovative measures of responding to this load growth, such as demand response, interconnection reform, among others. The ability to forecast load growth is an interesting task, because there are both general trends (growth in electric technologies, climate change, and increasing electrification, among others) and seasonal trends (periodic variations in energy demand and consumption) that impact load.
