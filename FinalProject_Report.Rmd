@@ -1,5 +1,5 @@
 ---
-title: "ERCOT Load Forecasting"
+title: "**ERCOT Load Forecasting**"
 subtitle: https://github.com/alex-lopez70/ChuangWhiteheadLopez_ENV797_TSA_FinalProject/
 author: "Daniel Whitehead, Alex Lopez, Jessalyn Chuang"
 output:
@@ -7,6 +7,8 @@ output:
     toc: true
     toc_depth: 3
     number_sections: true
+    fig_caption: true
+    keep_tex: true
 geometry: margin=2.54cm
 ---
 
@@ -19,8 +21,24 @@ knitr::opts_chunk$set(echo = TRUE)
 library(rvest);library(dataRetrieval);library(tidyverse);library(lubridate);library(viridis)
 library(here);library(httr);library(jsonlite);library(knitr);library(kableExtra)
 library(ggplot2);library(forecast);library(Kendall);library(tseries);library(outliers)
-library(tidyverse);library(smooth);library(zoo)
+library(tidyverse);library(smooth);library(zoo);library(ggthemes)
 here()
+```
+
+```{r include=FALSE}
+ # Set theme
+ theme_set(
+   theme_hc() +
+   theme(
+     plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+     plot.subtitle = element_text(hjust = 0.5, size = 10, face = "plain"),
+     plot.caption = element_text(hjust = 0.5, size = 7, face = "plain"),
+     axis.title.x = element_text(size = 10),
+     axis.title.y = element_text(size = 10, angle = 90),
+     legend.title = element_text(face = "bold", size = 10),
+     legend.text = element_text(size = 9)
+   ) 
+ )
 ```
 
 ```{r data pull, include=FALSE}
@@ -94,10 +112,9 @@ ts_load_train <- subset(ts_load,end = length(ts_load)-n_for) #stops 365 days bef
 ts_load_test <- subset(ts_load, start = length(ts_load)-n_for) #last 365 observations
 ```
 
-#GitHub Repository Link
+\listoffigures
 
-https://github.com/alex-lopez70/ChuangWhiteheadLopez_ENV797_TSA_FinalProject 
-
+\newpage
 # Introduction and Motivation
 
 Load growth used to be fairly stagnant and was managed by implementing more efficiency measures (Walton, 2023). However, with innovation in electrical technologies (EVs, heat pumps, etc.) and the introduction of new load sources (crypto mining and data centers), electrical load has skyrocketed in recent years. As a result, we need new and innovative measures of responding to this load growth, such as demand response, interconnection reform, among others. The ability to forecast load growth is an interesting task, because there are both general trends (growth in electric technologies, climate change, and increasing electrification, among others) and seasonal trends (periodic variations in energy demand and consumption) that impact load.
@@ -121,7 +138,7 @@ Using its “Export Data” tool, we queried hourly temperature and daily load a
 dataset_description <- data.frame(
   Column1 = c("Units", "Frequency", "Subsets"),
   Load = c("MW", "Daily", ""),
-  Temperature = c("Fahrenheit", "Hourly", "ERCOT Zone"),
+  Temperature = c("°F", "Hourly", "ERCOT Zone"),
   FuelMix = c("MW", "Daily", "Fuel (Coal and lignite, Hydro, Nuclear,
                  Solar, Wind, Natural Gas)")
 )
@@ -136,6 +153,7 @@ kbl(dataset_description, caption = "Data Set Description",
 
 ```
 
+\newpage
 ## Data Wrangling
 
 The earliest available data for ERCOT fuel mix was from January 2017, so we decided to retrieve load, temperature, and fuel mix data from January 2017 onwards. After importing each of these three data sets (daily values except for temperature data) for the dates 1 January 2017 to 4 April 2025 and converting them to data frames, we created a new 'Date' column for each of the three date sets that converted the time given in the 'interval_start_local' to a YYYY-MM-DD format. Regarding the temperature data, since it is hourly data divided by zone, we first found the hourly average for each zone, then the daily average for each zone, and finally we found the daily average using all the zones in ERCOT by using rowMeans(), group_by(), and summarise(). We split the data into training and testing subsets: testing data encompasses the last 365 days of data, while the rest was classified as the training data.
@@ -146,8 +164,8 @@ Since we are working with higher frequency data with multiple seasonalities, we 
 ERCOT_load_summary <- data.frame(
   Variable = c('interval_start_local', 'interval_start_utc', 'interval_end_local',
                'interval_end_utc', 'load', 'Date'),
-  Description = c('Start Time for the Day', 'Start Time for the Day (UTC)',
-                  'End Time for the Day', 'End Time for the Day (UTC)', 'Load (MW)',
+  Description = c('Start Time for the Day (Local)', 'Start Time for the Day (UTC)',
+                  'End Time for the Day (Local)', 'End Time for the Day (UTC)', 'Load (MW)',
                   'Date (YYYY-MM-DD)'),
   Units = c('Character', 'Character', 'Character', 'Character', 'Numeric', 
             'Date')
@@ -155,7 +173,7 @@ ERCOT_load_summary <- data.frame(
 
 ERCOT_temp_summary <- data.frame(
   Variable = c('Date', 'mean(Average)'),
-  Description = c('Date (YYYY-MM-DD)', 'Average Daily Temperature (Fahrenheit)'),
+  Description = c('Date (YYYY-MM-DD)', 'Average Daily Temperature (°F)'),
   Units = c('Date', 'Numeric')
 )
 
@@ -163,8 +181,8 @@ ERCOT_fuelmix_summary <- data.frame(
   Variable = c('interval_start_local', 'interval_start_utc', 'interval_end_local',
                'interval_end_utc', 'coal_and_lignite', 'hydro', 'nuclear', 
                'solar', 'wind', 'natural_gas'),
-  Description = c('Start Time for the Day', 'Start Time for the Day (UTC)',
-                  'End Time for the Day', 'End Time for the Day (UTC)',
+  Description = c('Start Time for the Day (Local)', 'Start Time for the Day (UTC)',
+                  'End Time for the Day (Local)', 'End Time for the Day (UTC)',
                   'Generation from Coal and Lignite (MW)',
                   'Generation from Hydro (MW)', 'Generation from Nuclear (MW)',
                   'Generation from Solar (MW)', 'Generation from Wind (MW)',
@@ -189,11 +207,9 @@ ts_load_monthly_test <- subset(ts_load_monthly, start = length(ts_load_monthly)-
 kable(ERCOT_load_summary, caption = "ERCOT Load Summary")
 ```
 
-
 ```{r table2, echo=FALSE}
 kable(ERCOT_temp_summary, caption = "ERCOT Daily Temperature Summary")
 ```
-
 
 ```{r table3, echo=FALSE}
 kable(ERCOT_fuelmix_summary, caption = "ERCOT Fuel Mix Summary")
@@ -207,49 +223,61 @@ To better understand the dynamics of electricity consumption and generation in t
 
 The ERCOT load has shown a steady increase from 2017 to 2025. This rise reflects growing residential and industrial electricity consumption, which could be attributed to population growth, economic development, and infrastructure expansion across Texas. Seasonal fluctuations are also apparent, with noticeable peaks during periods of extreme temperatures, particularly in the summer and winter months.
 
-```{r TS ERCOT Load Plot, echo=FALSE}
+```{r TS ERCOT Load Plot, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ERCOT Load from January 2017 to April 2025"}
 autoplot(ts_load, series = "ERCOT Load") +
   ggtitle("ERCOT Load") +
   xlab("Time") +
   ylab("Load (MW)") +
-  theme_minimal() +
   guides(colour = guide_legend(title = "Series"))
 ```
 
 The ACF of the ERCOT load series shows a slow decay, suggesting non-stationarity and a strong trend over time. The irregular PACF, with spikes at various lags, points to the seasonal components in the data, and it gives some insight into how seasonality can be incroporated into an auto-regressive model. The results of the ACF and PACF plots align with our visualizations, which reveal a steady rise in load from 2017 to 2025 and clear seasonal peaks during periods of extreme temperatures. These patterns show the impact of long-term growth and seasonal demand shifts in Texas's electricity consumption.
 
-```{r Load ACF & PACF, echo=FALSE}
-# ACF and PACF for ERCOT Load
+```{r Load ACF, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ACF for Load"}
+# ACF for ERCOT Load
 ggAcf(ts_load, lag.max = 365) + ggtitle("ACF of ERCOT Load") + theme_minimal()
-ggPacf(ts_load, lag.max = 365) + ggtitle("PACF of ERCOT Load") + theme_minimal()
+
 ```
 
+```{r Load PACF, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="PACF for Load"}
+# PACF for ERCOT Load
+ggPacf(ts_load, lag.max = 365) + ggtitle("PACF of ERCOT Load") + theme_minimal()
+
+```
+
+\newpage
 ## ERCOT Temperature
 
-As mentioned before, the temperature data was averaged daily for each zone and then combined to get an overall ERCOT-wide daily average. This change helped us match the temperature data with load and fuel mix data. As expected, temperature patterns showed strong seasonality, with summer highs and winter lows corresponding to fluctuations in load. 
+The temperature data was averaged daily for each zone and then combined to get an overall ERCOT-wide daily average. This change helped us match the temperature data with load and fuel mix data. As expected, temperature patterns showed strong seasonality, with summer highs and winter lows corresponding to fluctuations in load. 
 
-```{r Temp TS, echo=FALSE}
+```{r Temp TS, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ERCOT Temperature from January 2017 to April 2025"}
 autoplot(ts_temp) +
   ggtitle("ERCOT Area Temperature") +
   xlab("Time") +
-  ylab("Temperature (°F)") +
-  theme_minimal()
+  ylab("Temperature (°F)")
+  
 ```
 
 The ERCOT temperature series also exhibits a decaying ACF, indicating non-stationarity and potential long-term trends in temperature over time. The PACF of the temperature is similar to the PACF of the load, with an initial short decay over the first 10 lags followed by scattered significant spikes, suggesting both short-term autocorrelation and possible seasonal components. These results seemed to match up with our data for the ERCOT load, meaning it may have a significant role as an exogenous variable in scenario generation.
 
-
-```{r Temp ACF & PACF, echo=FALSE}
-# ACF and PACF for ERCOT Temperature
+```{r Temp ACF, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ACF for Temperature"}
+# ACF for ERCOT Temperature
 ggAcf(ts_temp, lag.max = 365) + ggtitle("ACF of ERCOT Temperature") + theme_minimal()
-ggPacf(ts_temp, lag.max = 365) + ggtitle("PACF of ERCOT Temperature") + theme_minimal()
+
 ```
 
+```{r Temp PACF, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="PACF for Temperature"}
+# PACF for ERCOT Temperature
+ggPacf(ts_temp, lag.max = 365) + ggtitle("PACF of ERCOT Temperature") + theme_minimal()
+
+```
+
+\newpage
 ## ERCOT Fuel Mix
 
-ERCOT’s fuel mix shows significant shifts over time. Natural gas seems the most relevant and responsive energy source, as its load shape closely mirrors the overall ERCOT demand curve. Coal and lignite usage has declined steadily, and this aligns with national efforts to reduce reliance on fossil fuels, as renewables such as wind and solar have shown steady increase. ERCOT's nuclear generation and hydroelectric power have both remained stable, though we should note that hydroelectric has very minimal contribution.
+ERCOT’s fuel mix shows significant shifts over time. Natural gas seems the most relevant and responsive energy source, as its load shape closely mirrors the overall ERCOT demand curve. Coal and lignite usage has declined steadily, and this aligns with national efforts to reduce reliance on fossil fuels, as renewables such as wind and solar have shown steady increase. ERCOT's nuclear generation and hydroelectric power have both remained stable, though we should note that hydroelectric has very minimal contribution to ERCOT's energy mix.
 
-```{r Plot TS Fuels, echo=FALSE}
+```{r Plot TS Fuels, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ERCOT Fuel Mix from January 2017 to April 2025"}
 ts_data <- data.frame(
   time = time(ts_load),
   load = ts_load,
@@ -271,21 +299,28 @@ autoplot(ts_natural_gas, series = "Natural Gas", size = 0.5, alpha = 0.6) +
   ggtitle("ERCOT Fuel Mix") +
   xlab("Time") +
   ylab("Load (MW)") +
-  scale_color_manual(values = c("red", "darkgreen", "skyblue2", "midnightblue", "orange", "pink")) + 
-  theme_minimal() +
+  scale_color_manual(values = c("red", "darkgreen", "skyblue2", "midnightblue", 
+                                "orange", "pink")) + 
   guides(colour = guide_legend(title = "Time Series"))
+
 ```
 
-Though all fuel mix ACF's and PACF's show non-stationary elements and seasonal components, natural gas is the most applicable to display for our acf/pacf analysis, as its ACF and PACF of natural gas prices closely resemble those of ERCOT load and temperature, showing a gradual decay in the ACF and irregular spikes in the PACF. The shape of these plots highlights the impact of natural gas in contributing to electricity demand and makes it an important variable in scenario generation.
+Though all fuel mix ACFs and PACFs show non-stationary elements and seasonal components, natural gas is the most applicable to display for our ACF/PACF analysis, as the ACF and PACF of natural gas prices closely resemble those of ERCOT load and temperature, showing a gradual decay in the ACF and irregular spikes in the PACF. The shape of these plots highlights the impact of natural gas in contributing to electricity demand and makes it an important variable in scenario generation.
 
-# ACF and PACF for Natural Gas
 
-```{r ACF and PACF for Natural Gas, echo=FALSE}
-# ACF and PACF for Natural Gas
+```{r ACF for Natural Gas, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ACF for Natural Gas"}
+# ACF for Natural Gas
 ggAcf(ts_natural_gas, lag.max = 365) + ggtitle("ACF of Natural Gas") + theme_minimal()
-ggPacf(ts_natural_gas, lag.max = 365) + ggtitle("PACF of Natural Gas") + theme_minimal()
+
 ```
 
+```{r PACF for Natural Gas, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="PACF for Natural Gas"}
+# PACF for Natural Gas
+ggPacf(ts_natural_gas, lag.max = 365) + ggtitle("PACF of Natural Gas") + theme_minimal()
+
+```
+
+\newpage
 # Methodology and Models
 
 Modeling ERCOT load is inherently complex due to the presence of multiple seasonal patterns, non-linearities, and variability driven by weather, human behavior, and market conditions. To capture these dynamics, we used a varity of time series models, each offering unique strengths.
@@ -296,29 +331,34 @@ Modeling ERCOT load is inherently complex due to the presence of multiple season
 
 STL + ETS combines two powerful methods: Seasonal and Trend decomposition using Loess (STL) and Exponential Smoothing (ETS). STL decomposes the time series into its seasonal, trend, and remainder components by using local smoothing techniques. Then, ETS applies exponential smoothing to each of the seasonal, trend, and remainder components to produce forecasts. This hybrid approach is particularly effective for modeling complex and potentially evolving seasonal patterns and trends in load data, as it allows the model to adapt to changing dynamics over time. By separately forecasting each component, it ensures better accuracy in the final forecast, especially when the data exhibits smooth, but also varying, seasonality or trends.
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from STL + ETS"}
 ETS_fit <-  stlf(ts_load_train, h=365)
 
 #forecasting results
 autoplot(ETS_fit) + 
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from STL + ETS") +
+  #labs(caption = "Forecasting Results from STL + ETS") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Observed Data and Forecasting Results from STL + ETS"}
 #model + observed data
 autoplot(ts_load) +
   autolayer(ETS_fit, PI=FALSE) +
   ylab("Load (MW)") +
-  labs(title = "STL + ETS Forecast",
-       caption = "Observed Data and Forecasting Results from STL + ETS") +
-  theme(plot.caption = element_text(hjust = 0.5))
+  labs(title = "STL + ETS Forecast") +
+  theme(plot.caption = element_text(hjust = 0.5)) +
+  xlim(2024 + 94/365, 2025 + 94/365)
+
 ```
 
+\newpage
 ### TBATS
 
 TBATS (Trigonometric Seasonalities, Box-Cox Transformation, ARMA Errors, Trend, and Seasonal Components) is well-suited for modeling ERCOT load due to its ability to capture multiple and non-integer seasonalities, such as daily and weekly cycles, as well as complex seasonal interactions. The model's flexibility in handling complex patterns and its scalability for longer-term forecasts make it a valuable method for accurate long-term load forecasting in dynamic systems like ERCOT.
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from TBATS"}
 TBATS_fit <- tbats(ts_load_train)
 
 TBATS_forecast <- forecast(TBATS_fit, h=365)
@@ -326,25 +366,30 @@ TBATS_forecast <- forecast(TBATS_fit, h=365)
 #forecasting results
 autoplot(TBATS_forecast) + 
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from TBATS") +
+  #labs(caption = "Forecasting Results from TBATS") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Observed Data and Forecasting Results from TBATS"}
 #model + observed data
 autoplot(ts_load) +
   autolayer(TBATS_forecast, PI=FALSE) +
   ylab("Load (MW)") +
-  labs(title = "TBATS Forecast",
-       caption = "Observed Data and Forecasting Results from TBATS") +
-  theme(plot.caption = element_text(hjust = 0.5))
+  labs(title = "TBATS Forecast") +
+  theme(plot.caption = element_text(hjust = 0.5)) +
+  xlim(2024 + 94/365, 2025 + 94/365)
+
 ```
 
+\newpage
 ### ARIMA + Fourier Terms
 
 This method integrates traditional autoregressive modeling with Fourier terms as exogenous regressors, effectively capturing recurring seasonal patterns like daily temperature-related demand fluctuations. This approach enhances ARIMA's forecasting performance for load data by explicitly modeling periodicities without the need for differencing seasonal components.
 
 Since the ARIMA + Fourier terms model is a good option for modeling multiple seasonalities, we ran a few models with a variety of K parameters. K is a vector of integers specifying the number of sine and cosine terms for each of the seasonal periods. For our four ARIMA + Fourier models, we used the following K parameters: K=c(2,3); K=c(2,4); K=c(2,6); and K=c(3,6). This means that there are 10, 12, 16, and 18 total regressors, respectively, represented by the Fourier terms, allowing us to capture the seasonal patterns typically present in load data such as the one analyzed in this report.
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from ARIMA+Fourier with K=c(2,3)"}
 #AF23
 ARIMA_Fourier_fit23 <- auto.arima(ts_load_train, 
                              seasonal=FALSE, 
@@ -361,9 +406,12 @@ ARIMA_Fourier_forec23 <- forecast(ARIMA_Fourier_fit23,
 #forecasting results
 autoplot(ARIMA_Fourier_forec23) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,3)") +
+  #labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,3)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from ARIMA+Fourier with K=c(2,4)"}
 #AF24
 ARIMA_Fourier_fit24 <- auto.arima(ts_load_train, 
                              seasonal=FALSE, 
@@ -380,9 +428,12 @@ ARIMA_Fourier_forec24 <- forecast(ARIMA_Fourier_fit24,
 #forecasting results
 autoplot(ARIMA_Fourier_forec24) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,4)") +
+  #labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,4)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from ARIMA+Fourier with K=c(2,6)"}
 #AF26
 ARIMA_Fourier_fit26 <- auto.arima(ts_load_train, 
                              seasonal=FALSE, 
@@ -399,9 +450,12 @@ ARIMA_Fourier_forec26 <- forecast(ARIMA_Fourier_fit26,
 #forecasting results
 autoplot(ARIMA_Fourier_forec26) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,6)") +
+  #labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(2,6)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from ARIMA+Fourier with K=c(3,6)"}
 #AF36
 ARIMA_Fourier_fit36 <- auto.arima(ts_load_train, 
                              seasonal=FALSE, 
@@ -418,13 +472,12 @@ ARIMA_Fourier_forec36 <- forecast(ARIMA_Fourier_fit36,
 #forecasting results
 autoplot(ARIMA_Fourier_forec36) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(3,6)") +
+  #labs(caption = "Forecasting Results from ARIMA+Fourier with K=c(3,6)") +
   theme(plot.caption = element_text(hjust = 0.5))
-
 
 ```
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Observed Data and Forecasting Results from AF23, AF24, AF26, AF36 Models"}
 #forecasting all AF models + observed data
 autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec23, series="K = c(2,3)", PI=FALSE) +
@@ -432,18 +485,19 @@ autoplot(ts_load) +
   autolayer(ARIMA_Fourier_forec26, series="K = c(2,6)", PI=FALSE) +
   autolayer(ARIMA_Fourier_forec36, series="K = c(3,6)", PI=FALSE) +
   ylab("Load (MW)") +
-  labs(title = "All ARIMA + Fourier Forecasts", 
-       caption = "Observed Data and Forecasting Results from AF23, AF24, AF26, AF36 Models") +
-  theme(plot.caption = element_text(hjust = 0.5))
+  labs(title = "All ARIMA + Fourier Forecasts") +
+  theme(plot.caption = element_text(hjust = 0.5)) +
+  xlim(2024 + 94/365, 2025 + 94/365)
 ```
 
+\newpage
 ### Neural Networks
 
 Neural networks incorporate lagged values and Fourier terms as inputs to model complex time series like ERCOT load data. They excel at capturing non-linear relationships that traditional linear models (like ARIMA) may struggle with. By using historical load patterns and multiple seasonal indicators, neural networks can adapt to complex seasonal behaviors, including interactions between short-term and long-term effects. The inclusion of lagged inputs (p) and seasonal lags (P) allows the neural network to model both short- and long-term dependencies, making it analogous to SARIMA models, but with the added advantage of capturing non-linearity.
 
 For our three Neural Network models, we used the following K parameters: K=c(2,4); K=c(2,6); and K=c(3,6). This means that there are 12, 16, and 18 total exogenous regressors modeled by Fourier terms, respectively. In each neural network model, the autoregressive parameters were set to p=1 and P=1. Each model therefore incorporates the most recent observation and one seasonal observation. This allows the models to learn both short-term dependencies (like immediate trends or sudden spikes) and long-term seasonal structure (like daily or weekly cycles). Combined with the Fourier terms, this structure enhances the model’s ability to capture the complex, non-linear, and multi-seasonal behavior characteristic of ERCOT load data.
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from Neural Network with K=c(2,4)"}
 #NN24
 NN_fit_24 <- nnetar(ts_load_train, p=1, P=1,
                  xreg=fourier(ts_load_train, K=c(2,4)))
@@ -454,9 +508,12 @@ NN_forec_24 <- forecast(NN_fit_24, h=365, xreg=fourier(ts_load_train,
 #forecasting results
 autoplot(NN_forec_24) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from Neural Network with K=c(2,4)") +
+  #labs(caption = "Forecasting Results from Neural Network with K=c(2,4)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from Neural Network with K=c(2,6)"}
 #NN26
 NN_fit_26 <- nnetar(ts_load_train, p=1, P=1,
                  xreg=fourier(ts_load_train, K=c(2,6)))
@@ -467,9 +524,12 @@ NN_forec_26 <- forecast(NN_fit_26, h=365, xreg=fourier(ts_load_train,
 #forecasting results
 autoplot(NN_forec_26) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from Neural Network with K=c(2,6)") +
+  #labs(caption = "Forecasting Results from Neural Network with K=c(2,6)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from Neural Network with K=c(3,6)"}
 #NN36
 NN_fit_36 <- nnetar(ts_load_train, p=1, P=1,
                  xreg=fourier(ts_load_train, K=c(3,6)))
@@ -480,78 +540,86 @@ NN_forec_36 <- forecast(NN_fit_36, h=365, xreg=fourier(ts_load_train,
 #forecasting results
 autoplot(NN_forec_36) +
   ylab("Load (MW)") +
-  labs(caption = "Forecasting Results from Neural Network with K=c(3,6)") +
+  #labs(caption = "Forecasting Results from Neural Network with K=c(3,6)") +
   theme(plot.caption = element_text(hjust = 0.5))
 
 ```
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Observed Data and Forecasting Results from NN24, NN26, NN36 Models"}
 #forecasting all NN models + observed data
 autoplot(ts_load) +
   autolayer(NN_forec_24, series="K = c(2,4)", PI=FALSE) +
   autolayer(NN_forec_26, series="K = c(2,6)", PI=FALSE) +
   autolayer(NN_forec_36, series="K = c(3,6)", PI=FALSE) +
   ylab("Load (MW)") +
-  labs(title = "All Neural Network Forecasts", 
-       caption = "Observed Data and Forecasting Results from NN24, NN26, NN36 Models") +
-  theme(plot.caption = element_text(hjust = 0.5))
+  labs(title = "All Neural Network Forecasts") +
+  theme(plot.caption = element_text(hjust = 0.5)) +
+  xlim(2024 + 94/365, 2025 + 94/365)
 
 ```
 
+\newpage
 ## Models with Monthly Data
 
 ### Seasonal ARIMA
 
 The seasonal ARIMA (SARIMA) autofits single-seasonality patterns through differencing and autoregressive/moving average components. This model is suitable when ERCOT load displays dominant recurring seasonal trends. Although it cannot model multiple seasonalities simultaneously, SARIMA remains a strong baseline for data with clear, stable seasonal structure.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Residuals (SARIMA)"}
 SARIMA_autofit <- auto.arima(ts_load_monthly_train)
 
 checkresiduals(SARIMA_autofit)
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from SARIMA"}
 SARIMA_forecast <- forecast(SARIMA_autofit, h=12)
 
 autoplot(SARIMA_forecast) +
   labs(y = "Load (MW)",
-       x = "Time",
-       caption = "Forecasting Results from SARIMA") +
-  theme(plot.caption = element_text(hjust = 0.5))
+       x = "Time")
 
 ```
 
+\newpage
 ### State Space Exponential Smoothing
 
 State Space Exponential Smoothing (SSES) offers a probabilistic and flexible approach to forecasting, modeling uncertainty while capturing both trend and seasonality. It automatically selects among additive or multiplicative trend and seasonal components based on the data, making it well-suited for monthly ERCOT load data where seasonal strength and trend can evolve over time. Its ability to model uncertainty and structural changes without manual re-specification is especially useful when trying to capture varying patterns.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Residuals (SSES)"}
 SSES_seas <- es(ts_load_monthly_train, model="ZZZ", h=12, holdout=FALSE)
 
 checkresiduals(SSES_seas)
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from SS Exponential Smoothing"}
 SSES_forecast <- forecast(SSES_seas, h=12)
 
 plot(SSES_forecast, ylab = "Load (MW)", xlab = "Time")
 
-mtext("Forecasting Results from SS Exponential Smoothing", side = 1, line = 4, cex = 0.75)
+#mtext("Forecasting Results from SS Exponential Smoothing", side = 1, line = 4, cex = 0.75)
 
 ```
 
+\newpage
 ### Structural Bayesian State Space Model
 
 Structural Bayesian State Space Model (SSBSM) is also a probabilistic framework, and it assumes that all components (trend, seasonality, irregularity) are stochastic and can evolve over time. This allows each element to change dynamically, providing robustness in the face of structural shifts due to climate variability, policy changes, or demand-side management. For monthly ERCOT load forecasting, this model is a suitable option when long-term patterns are not fixed and may change unpredictably.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Residuals (SSBSM)"}
 SS_seas <- StructTS(ts_load_monthly_train, type="BSM", fixed=c(NA,NA,NA,NA))
 
 checkresiduals(SS_seas)
 
+```
+
+```{r, echo=FALSE, fig.height=3.5, fig.width=10, message=FALSE, warning=FALSE, fig.cap="Forecasting Results from SS Basic Structure Model"}
 SS_forecast <- forecast(SS_seas, h=12)
 
 autoplot(SS_forecast) +
   labs(y = "Load (MW)",
-       x = "Time",
-       caption = "Forecasting Results from SS Basic Structure Model") +
-  theme(plot.caption = element_text(hjust = 0.5))
+       x = "Time") 
 
 ```
 
@@ -559,11 +627,13 @@ autoplot(SS_forecast) +
 
 Lastly, we did scenario generation using Cholesky decomposition, which allowed us to create multiple realistic future ERCOT load forecasts by simulating correlated input variables. First, we calculate the historical covariance matrix of the load and the 7 predictors. Then, using Cholesky decomposition, we broke this matrix into a lower triangular matrix that captures the variables' dependencies. By multiplying random normal samples by this matrix, we generated new input scenarios that preserve historical correlations. These are then fed into an ARIMA + Fourier forecasting model to produce a range of potential load trajectories. Doing this helps to capture uncertainty in both the predictors and their influence on load.
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, fig.cap="ERCOT Load Scenario Generation"}
 knitr::include_graphics("ercot_load_scenarios.png")
 ```
+
 This ARIMA + Fourier + exogenous variables model with Cholesky-based scenario generation shows overall trends well, but it doesn’t seem to capture large spikes in load that we were expecting (i.e. more values in the 60-70 GW range). The scenarios mostly stay close to the mean of the original data set and don’t reflect the more extreme values we sometimes see in actual data. This might be because Cholesky decomposition uses a multivariate normal distribution, which keeps the correlations between variables but tends to produce values clustered around the average, without many extreme highs or lows.
 
+\newpage
 # Results and Model Comparisons
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -589,6 +659,7 @@ knitr::include_graphics("model_comparison_monthly.png")
 
 Compared to the forecasting models for daily load, from only looking at the plot, the forecasting models for monthly load appear to have performed better (with the exception of the SSBSM model). The SARIMA and SSES models exhibit a very similar trend and seasonality to that of the test load data in black. In contrast, the SSBSM model appears to diverge strongly from what is expected to occur, which suggests it may be extrapolating a certain trend too aggressively.
 
+\newpage
 # Conclusions
 
 According to the results of our models, we can conclude that daily forecasting improves with more flexible approaches like ARIMA with Fourier terms and non-linear models like Neural Networks, which can adapt to short-term variability and capture complex patterns in the data. Simpler and more stable models like SARIMA and SSES are more effective for monthly forecasting, as they generalize better over longer horizons with less overfitting.
@@ -597,7 +668,8 @@ For scenario generation, Cholesky decomposition offers a straightforward way to 
 
 Load forecasting is an important tool for power system planning and operation. Accurate forecasts help grid operators have a reliable balance between electricity supply and demand, avoid blackouts, and minimize operational costs. They also support market participants in making decisions about bidding and generation schedules. As the grid becomes more complex and dynamic with increasing renewable integration, extreme weather events, and changing consumption patterns, flexible forecasting methods become even more essential for maintaining grid reliability and efficiency.
 
-# References
+# References 
+
 1. Guo, Kayla. Data centers are booming in Texas. What does that mean for the grid? Published 24 Jan. 2025. https://www.texastribune.org/2025/01/24/texas-data-center-boom-grid/.
 
 2. Kleckner, Tom. Batteries, Solar Help ERCOT Meet Record Winter Peak, 20 Feb. 2025, https://www.rtoinsider.com/98816-batteries-solar-help-ercot-meet-record-winter-peak/. 
@@ -605,3 +677,7 @@ Load forecasting is an important tool for power system planning and operation. A
 3. Walton, Robert. “US Electricity Load Growth Forecast Jumps 81% Led by Data Centers, Industry: Grid Strategies.” Utility Dive, 13 Dec. 2023, www.utilitydive.com/news/electricity-load-growing-twice-as-fast-as-expected-Grid-Strategies-report/702366/.
 
 4. Zimmerman, Zach, and John  D Wilson. The Era of Flat Power Demand Is Over, Dec. 2023, gridstrategiesllc.com/wp-content/uploads/2023/12/National-Load-Growth-Report-2023.pdf. 
+
+# Acknowledgment of AI Assistance
+
+*ChatGPT was used for troubleshooting code syntax and working through sections of scenario generation as this was newer material. All models and forecasts were executed and validated locally in RStudio by the authors.*
