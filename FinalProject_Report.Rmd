@@ -198,6 +198,7 @@ kable(ERCOT_temp_summary, caption = "ERCOT Daily Temperature Summary")
 ```{r table3, echo=FALSE}
 kable(ERCOT_fuelmix_summary, caption = "ERCOT Fuel Mix Summary")
 ```
+
 # Data Exploration
 
 To better understand the dynamics of electricity consumption and generation in the ERCOT region, we wanted to visualize our time series data (using the autoplot() function). These visuals gave us insights into long-term trends and seasonal patterns in ERCOT load, temperature, and the evolving fuel mix. By looking at these trends, we could spot times of high demand and see how temperature changes affect energy use. We also noticed shifts in the fuel mix, showing how the region is moving toward more sustainable energy sources.
@@ -206,25 +207,84 @@ To better understand the dynamics of electricity consumption and generation in t
 
 The ERCOT load has shown a steady increase from 2017 to 2025. This rise reflects growing residential and industrial electricity consumption, which could be attributed to population growth, economic development, and infrastructure expansion across Texas. Seasonal fluctuations are also apparent, with noticeable peaks during periods of extreme temperatures, particularly in the summer and winter months.
 
-[ts autoplot here]
+```{r TS ERCOT Load Plot, echo=FALSE}
+autoplot(ts_load, series = "ERCOT Load") +
+  ggtitle("ERCOT Load") +
+  xlab("Time") +
+  ylab("Load (MW)") +
+  theme_minimal() +
+  guides(colour = guide_legend(title = "Series"))
+```
 
-[ACF and PACF graphs and info for load here]
+The ACF of the ERCOT load series shows a slow decay, suggesting non-stationarity and a strong trend over time. The irregular PACF, with spikes at various lags, points to the seasonal components in the data, and it gives some insight into how seasonality can be incroporated into an auto-regressive model. The results of the ACF and PACF plots align with our visualizations, which reveal a steady rise in load from 2017 to 2025 and clear seasonal peaks during periods of extreme temperatures. These patterns show the impact of long-term growth and seasonal demand shifts in Texas's electricity consumption.
+
+```{r Load ACF & PACF, echo=FALSE}
+# ACF and PACF for ERCOT Load
+ggAcf(ts_load, lag.max = 365) + ggtitle("ACF of ERCOT Load") + theme_minimal()
+ggPacf(ts_load, lag.max = 365) + ggtitle("PACF of ERCOT Load") + theme_minimal()
+```
 
 ## ERCOT Temperature
 
 As mentioned before, the temperature data was averaged daily for each zone and then combined to get an overall ERCOT-wide daily average. This change helped us match the temperature data with load and fuel mix data. As expected, temperature patterns showed strong seasonality, with summer highs and winter lows corresponding to fluctuations in load. 
 
-[ts autoplot here]
+```{r Temp TS, echo=FALSE}
+autoplot(ts_temp) +
+  ggtitle("ERCOT Area Temperature") +
+  xlab("Time") +
+  ylab("Temperature (°F)") +
+  theme_minimal()
+```
 
-[ACF and PACF graphs and info for load here]
+The ERCOT temperature series also exhibits a decaying ACF, indicating non-stationarity and potential long-term trends in temperature over time. The PACF of the temperature is similar to the PACF of the load, with an initial short decay over the first 10 lags followed by scattered significant spikes, suggesting both short-term autocorrelation and possible seasonal components. These results seemed to match up with our data for the ERCOT load, meaning it may have a significant role as an exogenous variable in scenario generation.
+
+
+```{r Temp ACF & PACF, echo=FALSE}
+# ACF and PACF for ERCOT Temperature
+ggAcf(ts_temp, lag.max = 365) + ggtitle("ACF of ERCOT Temperature") + theme_minimal()
+ggPacf(ts_temp, lag.max = 365) + ggtitle("PACF of ERCOT Temperature") + theme_minimal()
+```
 
 ## ERCOT Fuel Mix
 
-ERCOT’s fuel mix shows significant shifts over time. Natural gas remains the most relevant and responsive energy source, with a load shape closely mirroring the overall ERCOT demand curve. Coal and lignite usage has declined steadily, and this aligns with national efforts to reduce reliance on fossil fuels, as renewables such as wind and solar have shown steady increase. ERCOT's nuclear generation and hydroelectric power have both remained stable, though we should note that hydroelectric has very minimal contribution.
+ERCOT’s fuel mix shows significant shifts over time. Natural gas seems the most relevant and responsive energy source, as its load shape closely mirrors the overall ERCOT demand curve. Coal and lignite usage has declined steadily, and this aligns with national efforts to reduce reliance on fossil fuels, as renewables such as wind and solar have shown steady increase. ERCOT's nuclear generation and hydroelectric power have both remained stable, though we should note that hydroelectric has very minimal contribution.
 
-[ts autoplot here]
+```{r Plot TS Fuels, echo=FALSE}
+ts_data <- data.frame(
+  time = time(ts_load),
+  load = ts_load,
+  temperature = ts_temp,
+  coal_and_lignite = ts_coal_and_lignite,
+  hydro = ts_hydro,
+  nuclear = ts_nuclear,
+  solar = ts_solar,
+  wind = ts_wind,
+  natural_gas = ts_natural_gas
+)
 
-[ACF and PACF graphs and info for load here]
+autoplot(ts_natural_gas, series = "Natural Gas", size = 0.5, alpha = 0.6) +
+  autolayer(ts_coal_and_lignite, series = "Coal and Lignite", size = 0.5, alpha = 0.8) +
+  autolayer(ts_wind, series = "Wind", size = 0.3, alpha = 0.8) +
+  autolayer(ts_nuclear, series = "Nuclear", size = 0.5, alpha = 0.8) +
+  autolayer(ts_solar, series = "Solar", size = 0.5, alpha = 0.6) +
+  autolayer(ts_hydro, series = "Hydro", size = 0.5, alpha = 0.6) +
+  ggtitle("ERCOT Fuel Mix") +
+  xlab("Time") +
+  ylab("Load (MW)") +
+  scale_color_manual(values = c("red", "darkgreen", "skyblue2", "midnightblue", "orange", "pink")) + 
+  theme_minimal() +
+  guides(colour = guide_legend(title = "Time Series"))
+```
+
+Though all fuel mix ACF's and PACF's show non-stationary elements and seasonal components, natural gas is the most applicable to display for our acf/pacf analysis, as its ACF and PACF of natural gas prices closely resemble those of ERCOT load and temperature, showing a gradual decay in the ACF and irregular spikes in the PACF. The shape of these plots highlights the impact of natural gas in contributing to electricity demand and makes it an important variable in scenario generation.
+
+# ACF and PACF for Natural Gas
+
+```{r ACF and PACF for Natural Gas, echo=FALSE}
+# ACF and PACF for Natural Gas
+ggAcf(ts_natural_gas, lag.max = 365) + ggtitle("ACF of Natural Gas") + theme_minimal()
+ggPacf(ts_natural_gas, lag.max = 365) + ggtitle("PACF of Natural Gas") + theme_minimal()
+```
 
 # Methodology and Models
 
